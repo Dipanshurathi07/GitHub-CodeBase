@@ -1,9 +1,11 @@
 import { Octokit } from "octokit";
 
 export const createOctokit = (accessToken) => {
-  if (accessToken) {
+    const token = accessToken || process.env.GITHUB_TOKEN;
+
+    if (token) {
         return new Octokit({
-            auth: accessToken
+                        auth: token
         });
     }
     return new Octokit();

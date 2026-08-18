@@ -1,9 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useDispatch, useSelector } from 'react-redux'
 import { FolderTree, FileText, MessagesSquare } from 'lucide-react'
 import FileTree from './FileTree.jsx'
 import FileExplainPanel from './FileExplainPanel.jsx'
 import ChatPanel from './ChatPanel.jsx'
-import { mockFileTree } from '../data/mockData.js'
+import { fetchFile, fetchRepoTree, ingestRepository } from '../Slice/ReduxSlice/githubSlice.js'
 
 function findNodeByName(node, name, path = '') {
   const currentPath = path ? `${path}/${node.name}` : node.name
@@ -18,14 +19,26 @@ function findNodeByName(node, name, path = '') {
 }
 
 export default function Workspace({ repoName }) {
+  const dispatch = useDispatch()
+  const { tree: githubTree, filesByPath, ingestStatus, indexedCount, error } = useSelector((state) => state.github)
+  const { user, status: authStatus } = useSelector((state) => state.auth)
   const [selected, setSelected] = useState(null) // { node, path }
   const [mobileTab, setMobileTab] = useState('tree') // tree | explain | chat
 
-  const tree = useMemo(() => mockFileTree, [])
+  const [owner, repo] = repoName.split('/')
+
+  useEffect(() => {
+    if (!owner || !repo || !user) return
+    dispatch(fetchRepoTree({ owner, repo }))
+    dispatch(ingestRepository({ owner, repo }))
+  }, [dispatch, owner, repo, user])
+
+  const tree = useMemo(() => buildFileTree(githubTree), [githubTree])
 
   function handleSelect(node, path) {
     setSelected({ node, path })
     setMobileTab('explain')
+    dispatch(fetchFile({ owner, repo, path }))
   }
 
   function handleJumpTo(fileName) {
@@ -54,6 +67,17 @@ export default function Workspace({ repoName }) {
             <p className="text-xs font-semibold text-text-faint uppercase tracking-wide">
               {repoName}
             </p>
+            <p className="mt-1 text-[11px] text-text-faint">
+              {!user
+                ? authStatus === 'loading'
+                  ? 'Checking GitHub sign-in...'
+                  : 'Sign in with GitHub to load files.'
+                : ingestStatus === 'loading'
+                  ? 'Indexing repository...'
+                  : ingestStatus === 'succeeded'
+                    ? `${indexedCount} files indexed`
+                    : error || 'Ready'}
+            </p>
           </div>
           <FileTree tree={tree} selectedPath={selected?.path} onSelect={handleSelect} />
         </div>
@@ -65,6 +89,7 @@ export default function Workspace({ repoName }) {
           <FileExplainPanel
             selectedNode={selected?.node}
             selectedPath={selected?.path}
+            file={selected ? filesByPath[selected.path] : null}
             onJumpTo={handleJumpTo}
           />
         </div>
@@ -86,6 +111,28 @@ export default function Workspace({ repoName }) {
       </div>
     </div>
   )
+}
+
+function buildFileTree(items) {
+  const root = { name: '', type: 'folder', children: [] }
+  for (const item of items || []) {
+    const parts = item.path.split('/')
+    let children = root.children
+    parts.forEach((name, index) => {
+      let node = children.find((child) => child.name === name)
+      if (!node) {
+        node = { name, type: index === parts.length - 1 && item.type === 'blob' ? 'file' : 'folder', children: [] }
+        if (node.type === 'file') {
+          node.lang = name.split('.').pop()
+          node.lines = item.size ? Math.max(1, Math.round(item.size / 35)) : 0
+          delete node.children
+        }
+        children.push(node)
+      }
+      children = node.children || []
+    })
+  }
+  return root
 }
 
 function MobileTab({ icon: Icon, label, active, onClick }) {

@@ -7,7 +7,6 @@ const passport = require("./Config/passport");
 const cors = require("cors");
 const authRoutes = require("./Routes/authRoute");
 const gitHubRoutes = require("./Routes/gitHubRoutes");
-const cron = require("./Cron/cleanUp");
 
 connectDB();
 

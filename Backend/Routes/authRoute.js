@@ -22,7 +22,8 @@ router.get('/auth/github/callback',
 router.get('/auth/user', (req, res) => {
  try {
   if (req.isAuthenticated()) {
-    res.status(200).json({ user: req.user });
+    const { _id, githubId, username, displayName, avatar } = req.user;
+    res.status(200).json({ user: { _id, githubId, username, displayName, avatar } });
   } else {
     res.status(401).json({ error: 'Not logged in' });
   }

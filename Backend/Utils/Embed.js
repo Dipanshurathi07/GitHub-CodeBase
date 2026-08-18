@@ -1,4 +1,4 @@
-export async function getEmbeddingsVector([text]){
+async function getEmbeddingsVector(texts) {
   const response = await fetch('https://api.voyageai.com/v1/embeddings', {
     method: 'POST',
     headers: {
@@ -6,7 +6,7 @@ export async function getEmbeddingsVector([text]){
       'Authorization': `Bearer ${process.env.VOYAGE_API_KEY}`,
     },
     body: JSON.stringify({
-      input: [text],
+      input: texts,
       model: 'voyage-4-large',
     }),
   });
@@ -14,4 +14,8 @@ if(!response.ok){
   throw new Error(`Failed to get embeddings: ${response.statusText}`);
 }
 
+  const data = await response.json();
+  return data.data.map((item) => item.embedding);
 }
+
+module.exports = getEmbeddingsVector;

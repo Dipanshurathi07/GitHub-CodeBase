@@ -7,7 +7,7 @@ const RISK_LABEL = {
   low: { text: 'Isolated / low risk', color: 'text-add', dot: 'bg-add' },
 }
 
-export default function FileExplainPanel({ selectedNode, selectedPath, onJumpTo }) {
+export default function FileExplainPanel({ selectedNode, selectedPath, file, onJumpTo }) {
   if (!selectedNode) {
     return (
       <div className="h-full flex flex-col items-center justify-center text-center px-8 text-text-faint">
@@ -35,7 +35,7 @@ export default function FileExplainPanel({ selectedNode, selectedPath, onJumpTo 
           <h2 className="font-mono text-[13.5px] font-medium truncate">{selectedPath}</h2>
         </div>
         <div className="mt-2 flex items-center gap-3 text-xs text-text-faint font-mono">
-          <span>{selectedNode.lines} lines</span>
+          <span>{file?.content ? file.content.split('\n').length : selectedNode.lines || 0} lines</span>
           <span className="w-1 h-1 rounded-full bg-ink-border" />
           <span className={`flex items-center gap-1.5 ${risk.color}`}>
             <Circle size={6} className={`${risk.dot} fill-current`} />
@@ -51,6 +51,17 @@ export default function FileExplainPanel({ selectedNode, selectedPath, onJumpTo 
           </h3>
           <p className="text-[14.5px] text-text-primary leading-relaxed">{explanation.summary}</p>
         </section>
+
+        {file?.content && (
+          <section className="mt-7">
+            <h3 className="text-xs font-semibold text-text-faint uppercase tracking-wide mb-2.5">
+              Source
+            </h3>
+            <pre className="max-h-72 overflow-auto rounded-md border border-ink-border bg-ink px-3 py-3 text-xs leading-relaxed text-text-muted">
+              <code>{file.content}</code>
+            </pre>
+          </section>
+        )}
 
         {explanation.keyPoints.length > 0 && (
           <section className="mt-7">

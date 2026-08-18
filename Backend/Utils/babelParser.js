@@ -1,5 +1,6 @@
 const parser = require("@babel/parser");
 const traverse = require("@babel/traverse").default;
+const JAVASCRIPT_EXTENSIONS = /\.(js|jsx|ts|tsx|mjs|cjs)$/i;
 
 /**
  * Code string ko AST me convert karta hai
@@ -7,6 +8,10 @@ const traverse = require("@babel/traverse").default;
 function createAST(code, filePath = "") {
   if (typeof code !== "string") {
     console.error("createAST: code must be a string");
+    return null;
+  }
+
+  if (filePath && !JAVASCRIPT_EXTENSIONS.test(filePath)) {
     return null;
   }
 
