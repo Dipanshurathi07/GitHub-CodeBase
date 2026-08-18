@@ -21,17 +21,17 @@ function findNodeByName(node, name, path = '') {
 export default function Workspace({ repoName }) {
   const dispatch = useDispatch()
   const { tree: githubTree, filesByPath, ingestStatus, indexedCount, error } = useSelector((state) => state.github)
-  const { user, status: authStatus } = useSelector((state) => state.auth)
+  const { user } = useSelector((state) => state.auth)
   const [selected, setSelected] = useState(null) // { node, path }
   const [mobileTab, setMobileTab] = useState('tree') // tree | explain | chat
 
   const [owner, repo] = repoName.split('/')
 
   useEffect(() => {
-    if (!owner || !repo || !user) return
+    if (!owner || !repo) return
     dispatch(fetchRepoTree({ owner, repo }))
     dispatch(ingestRepository({ owner, repo }))
-  }, [dispatch, owner, repo, user])
+  }, [dispatch, owner, repo])
 
   const tree = useMemo(() => buildFileTree(githubTree), [githubTree])
 
@@ -68,15 +68,11 @@ export default function Workspace({ repoName }) {
               {repoName}
             </p>
             <p className="mt-1 text-[11px] text-text-faint">
-              {!user
-                ? authStatus === 'loading'
-                  ? 'Checking GitHub sign-in...'
-                  : 'Sign in with GitHub to load files.'
-                : ingestStatus === 'loading'
+              {ingestStatus === 'loading'
                   ? 'Indexing repository...'
                   : ingestStatus === 'succeeded'
                     ? `${indexedCount} files indexed`
-                    : error || 'Ready'}
+                    : error || (user ? 'Ready' : 'Public repository mode')}
             </p>
           </div>
           <FileTree tree={tree} selectedPath={selected?.path} onSelect={handleSelect} />

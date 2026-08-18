@@ -165,12 +165,6 @@ router.get("/tree/:owner/:repo", async (req, res) => {
     try {
         const { owner, repo } = req.params;
         const accessToken = req.user?.accessToken || process.env.GITHUB_TOKEN;
-        if (!accessToken) {
-            return res.status(401).json({
-                success: false,
-                message: "GitHub sign-in or GITHUB_TOKEN is required to fetch repositories."
-            });
-        }
         const octokit = createOctokit(accessToken);
         // Get default branch
         const repoResponse = await octokit.rest.repos.get({
@@ -213,12 +207,6 @@ router.post("/ingest/:owner/:repo", async (req, res) => {
     try {
         const { owner, repo } = req.params;
         const accessToken = req.user?.accessToken || process.env.GITHUB_TOKEN;
-        if (!accessToken) {
-            return res.status(401).json({
-                success: false,
-                message: "GitHub sign-in or GITHUB_TOKEN is required to fetch repositories."
-            });
-        }
         const octokit = createOctokit(accessToken);
         const repoResponse = await octokit.rest.repos.get({ owner, repo });
         const branch = repoResponse.data.default_branch;
@@ -245,7 +233,7 @@ router.post("/ingest/:owner/:repo", async (req, res) => {
             { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
         );
 
-        const candidates = treeResponse.data.tree
+        const candidates = tree
             .filter((item) => item.type === "blob" && TEXT_EXTENSIONS.test(item.path))
             .filter((item) => !IGNORED_PATHS.test(item.path))
             .slice(0, 100);
@@ -285,13 +273,39 @@ router.get("/file/:owner/:repo", async (req, res) => {
                 message: "File path is required"
             });
         }
-        const accessToken = req.user?.accessToken || null;
-        const octokit = createOctokit(accessToken);
-        const response = await octokit.rest.repos.getContent({
-            owner,
-            repo,
-            path
-        });
+        const accessToken = req.user?.accessToken || process.env.GITHUB_TOKEN;
+        let response;
+
+        if (accessToken) {
+            const octokit = createOctokit(accessToken);
+            response = await octokit.rest.repos.getContent({ owner, repo, path });
+        } else {
+            const encodedPath = path.split('/').map(encodeURIComponent).join('/');
+            let branch = 'main';
+            let rawResponse = await fetch(`https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${encodedPath}`);
+
+            if (!rawResponse.ok) {
+                branch = 'master';
+                rawResponse = await fetch(`https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${encodedPath}`);
+            }
+
+            if (!rawResponse.ok) {
+                throw new Error(`Unable to fetch public file: ${path}`);
+            }
+
+            const rawContent = await rawResponse.text();
+            response = {
+                data: {
+                    name: path.split('/').pop(),
+                    path,
+                    size: Buffer.byteLength(rawContent),
+                    sha: `raw-${branch}`,
+                    branch,
+                    private: false,
+                    content: Buffer.from(rawContent, 'utf-8').toString('base64'),
+                },
+            };
+        }
         const content = Buffer.from(
             response.data.content,
             "base64"
@@ -303,7 +317,7 @@ router.get("/file/:owner/:repo", async (req, res) => {
             {
                 owner,
                 repo,
-                branch: response.data?.git_url?.split("/").slice(-2, -1)[0] || "main",
+                branch: response.data.branch || response.data?.git_url?.split("/").slice(-2, -1)[0] || "main",
                 lastCommitSha: response.data.sha || response.data.node_id || "",
                 visibility: response.data.private ? "private" : "public",
                 githubId: response.data?.id || null,
