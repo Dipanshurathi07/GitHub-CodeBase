@@ -4,7 +4,7 @@ import { FolderTree, FileText, MessagesSquare } from 'lucide-react'
 import FileTree from './FileTree.jsx'
 import FileExplainPanel from './FileExplainPanel.jsx'
 import ChatPanel from './ChatPanel.jsx'
-import { fetchFile, fetchRepoTree, ingestRepository } from '../Slice/ReduxSlice/githubSlice.js'
+import { fetchFile, ingestRepository } from '../Slice/ReduxSlice/githubSlice.js'
 
 function findNodeByName(node, name, path = '') {
   const currentPath = path ? `${path}/${node.name}` : node.name
@@ -29,7 +29,6 @@ export default function Workspace({ repoName }) {
 
   useEffect(() => {
     if (!owner || !repo) return
-    dispatch(fetchRepoTree({ owner, repo }))
     dispatch(ingestRepository({ owner, repo }))
   }, [dispatch, owner, repo])
 

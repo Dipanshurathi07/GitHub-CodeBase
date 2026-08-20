@@ -19,18 +19,6 @@ export const fetchRepositories = createAsyncThunk(
   }
 );
 
-export const fetchRepoTree = createAsyncThunk(
-  'github/fetchRepoTree',
-  async ({ owner, repo }, { rejectWithValue }) => {
-    try {
-      const data = await request(`/api/github/tree/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`);
-      return data.tree;
-    } catch (error) {
-      return rejectWithValue(error.message);
-    }
-  }
-);
-
 export const fetchFile = createAsyncThunk(
   'github/fetchFile',
   async ({ owner, repo, path }, { rejectWithValue }) => {
@@ -50,22 +38,6 @@ export const ingestRepository = createAsyncThunk(
       return await request(`/api/github/ingest/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`, { method: 'POST' });
     } catch (error) {
       return rejectWithValue(error.message);
-    }
-  }
-);
-
-export const fetchRepoInfo = createAsyncThunk(
-  'github/fetchRepoInfo',
-  async (repoName, { rejectWithValue }) => {
-    try {
-      const response = await fetch(`/api/github/repos/${encodeURIComponent(repoName)}`);
-      if (!response.ok) {
-        const body = await response.json().catch(() => ({}));
-        return rejectWithValue(body.error || 'Failed to fetch repository info');
-      }
-      return response.json();
-    } catch (error) {
-      return rejectWithValue(error.message || 'Network error');
     }
   }
 );
@@ -95,18 +67,6 @@ export const githubSlice = createSlice({
   },
   extraReducers(builder) {
     builder
-      .addCase(fetchRepoInfo.pending, (state) => {
-        state.status = 'loading';
-        state.error = null;
-      })
-      .addCase(fetchRepoInfo.fulfilled, (state, action) => {
-        state.status = 'succeeded';
-        state.repo = action.payload;
-      })
-      .addCase(fetchRepoInfo.rejected, (state, action) => {
-        state.status = 'failed';
-        state.error = action.payload || 'Unable to fetch repository info';
-      })
       .addCase(fetchRepositories.pending, (state) => {
         state.status = 'loading';
         state.error = null;
@@ -118,12 +78,6 @@ export const githubSlice = createSlice({
       .addCase(fetchRepositories.rejected, (state, action) => {
         state.status = 'failed';
         state.error = action.payload;
-      })
-      .addCase(fetchRepoTree.fulfilled, (state, action) => {
-        state.tree = action.payload;
-      })
-      .addCase(fetchRepoTree.rejected, (state, action) => {
-        state.error = action.payload || 'Unable to fetch repository tree';
       })
       .addCase(fetchFile.pending, (state) => {
         state.status = 'loading';

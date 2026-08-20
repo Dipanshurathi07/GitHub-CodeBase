@@ -8,14 +8,18 @@ async function getEmbeddingsVector(texts) {
     body: JSON.stringify({
       input: texts,
       model: 'voyage-4-large',
+      output_dimension: 1024,
     }),
   });
-if(!response.ok){
-  throw new Error(`Failed to get embeddings: ${response.statusText}`);
-}
+  if (!response.ok) {
+    throw new Error(`Failed to get embeddings: ${response.statusText}`);
+  }
 
   const data = await response.json();
-  return data.data.map((item) => item.embedding);
+  return data.data.map((item) => [
+    ...item.embedding,
+    ...new Array(1536 - item.embedding.length).fill(0),
+  ]);
 }
 
 module.exports = getEmbeddingsVector;

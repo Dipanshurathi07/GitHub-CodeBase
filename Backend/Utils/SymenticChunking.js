@@ -72,7 +72,7 @@ const storeInPinecone = async (chunks) => {
             metadata: { ...doc.metadata, text: doc.content },
         }));
 
-        await index.upsert(pineconeVectors);
+        await index.upsert({ records: pineconeVectors });
         console.log(`✅ Stored batch: ${i + batch.length}/${chunks.length}`);
     }
 };

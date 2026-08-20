@@ -38,13 +38,13 @@ export default function DiffTerminal() {
 
   return (
     <div className="w-full max-w-xl rounded-lg border border-ink-border bg-ink-panel shadow-glow overflow-hidden">
-      <div className="flex items-center gap-1.5 px-4 py-3 border-b border-ink-border bg-ink-panelAlt">
+      <div className="flex items-center gap-1.5 px-3 sm:px-4 py-3 border-b border-ink-border bg-ink-panelAlt">
         <span className="w-2.5 h-2.5 rounded-full bg-[#4B4F5E]" />
         <span className="w-2.5 h-2.5 rounded-full bg-[#4B4F5E]" />
         <span className="w-2.5 h-2.5 rounded-full bg-[#4B4F5E]" />
-        <span className="ml-3 text-xs font-mono text-text-faint">query.ts — explained</span>
+        <span className="ml-3 truncate text-xs font-mono text-text-faint">query.ts — explained</span>
       </div>
-      <div className="p-4 font-mono text-[13px] leading-[1.85] min-h-[280px]">
+      <div className="p-3 sm:p-4 font-mono text-[11px] sm:text-[13px] leading-[1.85] min-h-[230px] sm:min-h-[280px] overflow-x-auto">
         {SEQUENCE.slice(0, visibleLines).map((line, i) => (
           <div
             key={`${cycle}-${i}`}

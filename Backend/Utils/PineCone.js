@@ -4,6 +4,6 @@ const path = require('path');
 
 dotenv.config({ path: path.join(__dirname, '../.env') });
 const pc = new Pinecone({ apiKey: process.env.PINECONE_API_KEY });
-const index = pc.Index('explain-codebase');
+const index = pc.Index(process.env.PINECONE_INDEX || 'explain-codebase');
 
 module.exports = index;

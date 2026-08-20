@@ -51,7 +51,7 @@ export default function Header({ view, repoName, onReset }) {
   return (
     <>
       <header className="border-b border-ink-border bg-ink/95 backdrop-blur sticky top-0 z-30">
-        <div className="max-w-[1400px] mx-auto px-5 sm:px-8 h-16 flex items-center justify-between">
+        <div className="max-w-[1400px] mx-auto px-4 sm:px-8 h-16 flex items-center justify-between gap-3">
           <button
             onClick={onReset}
             className="flex items-center gap-2.5 group"
@@ -60,7 +60,7 @@ export default function Header({ view, repoName, onReset }) {
             <span className="w-7 h-7 rounded-md bg-add-bg border border-add/30 flex items-center justify-center font-mono text-add text-sm font-bold group-hover:border-add/60 transition-colors">
               +
             </span>
-            <span className="font-mono text-[15px] font-semibold tracking-tight text-text-primary">
+            <span className="truncate font-mono text-[13px] sm:text-[15px] font-semibold tracking-tight text-text-primary">
               explain<span className="text-text-faint">/</span>my-codebase
             </span>
           </button>
@@ -74,7 +74,7 @@ export default function Header({ view, repoName, onReset }) {
                 </div>
                 <button
                   onClick={onReset}
-                  className="flex items-center gap-1.5 text-sm text-text-muted hover:text-text-primary transition-colors px-3 py-1.5 rounded-md border border-ink-border hover:border-ink-border/80 hover:bg-ink-panel"
+                  className="flex items-center gap-1.5 text-xs sm:text-sm text-text-muted hover:text-text-primary transition-colors px-2 sm:px-3 py-1.5 rounded-md border border-ink-border hover:border-ink-border/80 hover:bg-ink-panel whitespace-nowrap"
                 >
                   <ArrowLeft size={14} />
                   New repo

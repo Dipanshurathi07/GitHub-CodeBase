@@ -20,8 +20,8 @@ export default function Hero({ onSubmit }) {
   }
 
   return (
-    <main className="max-w-[1400px] mx-auto px-5 sm:px-8 pt-16 sm:pt-24 pb-24">
-      <div className="grid lg:grid-cols-[1.1fr_1fr] gap-16 items-center">
+    <main className="max-w-[1400px] mx-auto px-4 sm:px-8 pt-10 sm:pt-24 pb-14 sm:pb-24 overflow-hidden">
+      <div className="grid lg:grid-cols-[1.1fr_1fr] gap-10 sm:gap-16 items-center">
         {/* Left: copy + form */}
         <div>
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-signal-soft bg-signal-soft/20 text-signal text-xs font-mono mb-6">
@@ -29,25 +29,25 @@ export default function Hero({ onSubmit }) {
             AI GitHub onboarding
           </div>
 
-          <h1 className="font-mono text-4xl sm:text-[3.4rem] leading-[1.08] font-semibold tracking-tight text-text-primary">
+          <h1 className="font-mono text-[2.35rem] sm:text-[3.4rem] leading-[1.08] font-semibold tracking-tight text-text-primary">
             Read the diff,
             <br />
             not the <span className="text-add">whole repo.</span>
           </h1>
 
-          <p className="mt-6 text-lg text-text-muted max-w-lg leading-relaxed">
+          <p className="mt-5 sm:mt-6 text-base sm:text-lg text-text-muted max-w-lg leading-relaxed">
             Paste any public GitHub URL. Get a plain-English map of the file
             structure, a summary for every file that matters, and a chat that
             already knows the codebase — before you've cloned anything.
           </p>
 
-          <form onSubmit={handleSubmit} className="mt-9 max-w-lg">
+          <form onSubmit={handleSubmit} className="mt-7 sm:mt-9 max-w-lg">
             <label htmlFor="repo-url" className="block text-sm text-text-muted mb-2 font-medium">
               Repository URL
             </label>
             <div className="flex flex-col sm:flex-row gap-2.5">
               <div className="relative flex-1">
-                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-faint font-mono text-sm select-none">
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-faint font-mono text-xs sm:text-sm select-none">
                   github.com/
                 </span>
                 <input
@@ -56,7 +56,7 @@ export default function Hero({ onSubmit }) {
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
                   placeholder="tanstack/query"
-                  className="w-full bg-ink-panel border border-ink-border rounded-md pl-[6.6rem] pr-3.5 py-3 text-sm font-mono text-text-primary placeholder:text-text-faint focus:border-signal/60 focus:outline-none transition-colors"
+                  className="w-full bg-ink-panel border border-ink-border rounded-md pl-[6.1rem] sm:pl-[6.6rem] pr-3.5 py-3 text-sm font-mono text-text-primary placeholder:text-text-faint focus:border-signal/60 focus:outline-none transition-colors"
                 />
               </div>
               <button
@@ -92,7 +92,7 @@ export default function Hero({ onSubmit }) {
       </div>
 
       {/* Feature strip */}
-      <div className="mt-28 grid sm:grid-cols-3 gap-px bg-ink-border rounded-lg overflow-hidden border border-ink-border">
+      <div className="mt-16 sm:mt-28 grid sm:grid-cols-3 gap-px bg-ink-border rounded-lg overflow-hidden border border-ink-border">
         <Feature
           icon={FolderTree}
           title="File structure, mapped"
@@ -115,7 +115,7 @@ export default function Hero({ onSubmit }) {
 
 function Feature({ icon: Icon, title, desc }) {
   return (
-    <div className="bg-ink p-7 sm:p-8">
+    <div className="bg-ink p-5 sm:p-8">
       <Icon size={18} className="text-add mb-4" strokeWidth={1.75} />
       <h3 className="font-mono text-[15px] font-semibold text-text-primary mb-2">{title}</h3>
       <p className="text-sm text-text-muted leading-relaxed">{desc}</p>
