@@ -1,0 +1,6 @@
+{
+  "installCommand": "cd explain-my-codebase && npm install --include=dev",
+  "buildCommand": "cd explain-my-codebase && npm run build",
+  "outputDirectory": "explain-my-codebase/dist",
+  "framework": "vite"
+}
