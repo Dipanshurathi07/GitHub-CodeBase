@@ -1,0 +1,6 @@
+{
+  "buildCommand": "npm run build --prefix explain-my-codebase",
+  "installCommand": "npm install --prefix explain-my-codebase",
+  "outputDirectory": "explain-my-codebase/dist",
+  "framework": "vite"
+}
