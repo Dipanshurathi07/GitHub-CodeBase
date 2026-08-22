@@ -1,37 +1,34 @@
-const mongoose = require("mongoose");
-const mongooseSchema = mongoose.Schema;
+const mongoose = require('mongoose');
 
-const repoSchema = new mongooseSchema({
-  owner : {
-    type : String,
-    required : true
+const repositorySchema = new mongoose.Schema({
+  owner: {
+    type: String,
+    required: true,
   },
-  repo : {
-    type : String,
-    required : true
+  repo: {
+    type: String,
+    required: true,
   },
-  branch : {
-    type : String,
-    required : true
+  branch: {
+    type: String,
+    default: 'main',
   },
-  lastCommitSha : {
-    type : String,
-    required : true
+  lastCommitSha: {
+    type: String,
   },
-  visibility : {
-    type : String,
-    enum : ["public","private"],
-    required : true
+  visibility: {
+    type: String,
+    default: 'public',
   },
-  githubId : {
-    type : Number,
-    required : true
+  githubId: {
+    type: String,
   },
-  lastAccessed : {
-    type : Date,
-    required : true,
-    default : Date.now,
-  }
-},{timestamps: true});
-const Repository = mongoose.model("Repository", repoSchema);
+  lastAccessed: {
+    type: Date,
+    default: Date.now,
+  },
+}, { timestamps: true });
+
+const Repository = mongoose.model('Repository', repositorySchema);
+
 module.exports = Repository;

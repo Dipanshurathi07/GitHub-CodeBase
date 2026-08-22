@@ -1,6 +1,6 @@
-import { Octokit } from "octokit";
+const { Octokit } = require("octokit");
 
-export const createOctokit = (accessToken) => {
+const createOctokit = (accessToken) => {
     const token = accessToken || process.env.GITHUB_TOKEN;
 
     if (token) {
@@ -9,4 +9,6 @@ export const createOctokit = (accessToken) => {
         });
     }
     return new Octokit();
-}
+};
+
+module.exports = { createOctokit };

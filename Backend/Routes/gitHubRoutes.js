@@ -1,14 +1,17 @@
 const express = require("express");
-const router = express.Router();
 const { createOctokit } = require("../Utils/Octokit");
 const { createAST, extractMetadata } = require("../Utils/babelParser");
-const { MetaData } = require("../Models/MetaData");
+const MetaData = require("../Models/MetaData");
 const Repository = require("../Models/Repository");
 const FileContent = require("../Models/FileContent");
 const getEmbeddingsVector = require("../Utils/Embed");
 const treeToText = require("../Utils/TreeToText");
 const upsertVectors = require("../Utils/PCupsert");
 const vectorSearch = require("../Services/vectorSearch");
+const buildAugmentationPrompt = require("../Services/buildAugumentationPrompt");
+const getLLMAnswer = require("../Services/LLMModel");
+
+const router = express.Router();
 
 const IGNORED_PATHS = /(^|\/)(node_modules|\.git|dist|build|coverage)(\/|$)/;
 const TREE_IGNORED_PATHS = /(^|\/)(node_modules|\.git|dist|build|coverage|\.next|\.vite|vendor)(\/|$)/i;
@@ -87,9 +90,6 @@ async function fetchPublicFile(owner, repo, branch, path, sha) {
     };
 }
 
-/**
- * GET /api/github/repos
- */
 router.get("/repos", async (req, res) => {
     try {
         if (!req.user) {
@@ -103,9 +103,6 @@ router.get("/repos", async (req, res) => {
     }
 });
 
-/**
- * GET /api/github/contents/:owner/:repo
- */
 router.get("/contents/:owner/:repo", async (req, res) => {
     try {
         const { owner, repo } = req.params;
@@ -117,30 +114,111 @@ router.get("/contents/:owner/:repo", async (req, res) => {
     }
 });
 
-/**
- * POST /api/github/search/:owner/:repo
- * Body: { query }
- */
 router.post("/search/:owner/:repo", async (req, res) => {
     try {
         const { owner, repo } = req.params;
+        const userQuery = req.body.query;
+
+        if (!userQuery || !userQuery.trim()) {
+            return res.status(400).json({ success: false, message: "Query is required" });
+        }
+
         const repoDoc = await Repository.findOne({ owner, repo }).select("_id").lean();
 
         if (!repoDoc) {
             return res.status(404).json({ success: false, message: "Repository is not indexed yet" });
         }
 
-        const results = await vectorSearch(req.body.query, repoDoc._id);
-        res.status(200).json({ success: true, results });
+        const retrievedChunks = await vectorSearch(userQuery, repoDoc._id);
+
+        if (retrievedChunks.length === 0) {
+            return res.status(200).json({ 
+                success: true, 
+                answer: "No relevant code found for your query in the indexed codebase.",
+                chunks: [],
+                chunkCount: 0
+            });
+        }
+
+        const prompt = buildAugmentationPrompt(userQuery, retrievedChunks);
+        const answer = await getLLMAnswer(prompt);
+
+        res.status(200).json({ 
+            success: true, 
+            answer: answer,
+            chunks: retrievedChunks,
+            chunkCount: retrievedChunks.length,
+            query: userQuery
+        });
     } catch (error) {
+        console.error("Search error:", error.message);
         res.status(500).json({ success: false, message: error.message });
     }
 });
 
-/**
- * POST /api/github/ingest/:owner/:repo
- * Bulk: saari text files fetch + persist + embed + tree bhi embed
- */
+router.post("/file-summary/:owner/:repo", async (req, res) => {
+    try {
+        const { owner, repo } = req.params;
+        const { path } = req.body;
+
+        if (!path || typeof path !== "string") {
+            return res.status(400).json({ success: false, message: "File path is required" });
+        }
+
+        const repoDoc = await Repository.findOne({ owner, repo }).select("_id").lean();
+        if (!repoDoc) {
+            return res.status(404).json({ success: false, message: "Repository is not indexed yet" });
+        }
+
+        let chunks = [];
+        const savedFile = await FileContent.findOne({ repoId: repoDoc._id, filePath: path }).lean();
+        if (savedFile?.content) {
+            chunks = [{
+                filePath: path,
+                text: savedFile.content,
+                metadata: { filePath: path, content: savedFile.content, functions: [] },
+            }];
+        } else {
+            chunks = await vectorSearch(`Explain the purpose and flow of ${path}`, repoDoc._id, 5, path);
+        }
+
+        if (chunks.length === 0) {
+            return res.status(200).json({
+                success: true,
+                summary: "This file is still being indexed. Please click the file again in a moment.",
+            });
+        }
+
+        const prompt = `${buildAugmentationPrompt(
+            `Analyze ${path} and produce a detailed but easy-to-understand developer summary. Explain the complete responsibility of the file and how its important parts work together, not just its first function. Cover the main routes, helper functions, data flow, external services, database operations, validation, and error handling that are visible in the code. Use only facts supported by the provided code context. Identify the file's actual imports, functions, classes, constants, routes, models, or services and explain why the important symbols are used. Do not invent symbols, dependencies, callers, or behavior. If a detail is not visible in the context, say that it is not visible rather than guessing. Keep the complete response between 250 and 400 words.
+
+Return plain text only. Do not use Markdown headings, code fences, a Source section, or repeat the file name as a heading.
+Use exactly this compact format:
+Purpose: [3 to 4 clear sentences explaining what the complete file does, what problem it solves, and how its major responsibilities are divided]
+Dependencies: [2 to 3 sentences naming the 3 to 6 most important imports or integrations and explaining the role of each]
+Flow: [4 to 6 clear sentences explaining the main execution path from start to finish, including validation, authentication, data transformations, database changes, API calls, background work, and returned results]
+Risk: [low, medium, or high] - [one short reason based on visible routes, callers, exports, or integrations]
+When to touch this: [one practical maintenance scenario]
+Suggested questions:
+1. [short question referencing an actual symbol in the file]
+2. [short question referencing an actual symbol in the file]
+3. [short question referencing an actual symbol in the file]
+
+Keep the answer between 160 and 300 words so it is complete but easy to scan. Every symbol must be visible in the file; do not guess.`,
+            chunks
+        )}`;
+        const summary = await getLLMAnswer(prompt, {
+            temperature: 0.2,
+            maxOutputTokens: 1000,
+        });
+
+        return res.status(200).json({ success: true, summary });
+    } catch (error) {
+        console.error("File summary error:", error.message);
+        return res.status(500).json({ success: false, message: error.message });
+    }
+});
+
 router.post("/ingest/:owner/:repo", async (req, res) => {
     try {
         const { owner, repo } = req.params;
@@ -166,7 +244,7 @@ router.post("/ingest/:owner/:repo", async (req, res) => {
                 branch,
                 lastCommitSha: branchResponse.data.commit.sha,
                 visibility: repoResponse.data.private ? "private" : "public",
-                githubId: repoResponse.data.id,
+                githubId: String(repoResponse.data.id),
                 lastAccessed: new Date(),
             },
             { upsert: true, returnDocument: "after", setDefaultsOnInsert: true }
@@ -226,10 +304,6 @@ router.post("/ingest/:owner/:repo", async (req, res) => {
     }
 });
 
-/**
- * GET /api/github/file/:owner/:repo?path=src/index.js
- * Single file: fetch + persist for on-demand file loading
- */
 router.get("/file/:owner/:repo", async (req, res) => {
     try {
         const { owner, repo } = req.params;
@@ -279,7 +353,7 @@ router.get("/file/:owner/:repo", async (req, res) => {
                 branch: response.data.branch || "main",
                 lastCommitSha: response.data.sha || response.data.node_id || "",
                 visibility: response.data.private ? "private" : "public",
-                githubId: response.data?.id || null,
+                githubId: response.data?.id ? String(response.data.id) : undefined,
                 lastAccessed: new Date(),
             },
             { upsert: true, returnDocument: "after", setDefaultsOnInsert: true }
@@ -313,8 +387,6 @@ router.get("/file/:owner/:repo", async (req, res) => {
         }
 
         const existingFileContent = await FileContent.findOne({ repoId: repoDoc._id, filePath: response.data.path });
-        const isNewOrUpdated = !existingFileContent || existingFileContent.filesha !== response.data.sha;
-
         if (!existingFileContent) {
             await new FileContent({
                 repoId: repoDoc._id,
@@ -322,36 +394,14 @@ router.get("/file/:owner/:repo", async (req, res) => {
                 content,
                 filesha: response.data.sha,
             }).save();
-        } else if (existingFileContent.filesha !== response.data.sha) {
-            await FileContent.findOneAndUpdate(
-                { repoId: repoDoc._id, filePath: response.data.path },
-                { content, filesha: response.data.sha }
-            );
-        }
-
-        if (isNewOrUpdated) {
-            const embeddings = await getEmbeddingsVector([content.slice(0, 12000)]);
-            await upsertVectors([{
-                id: `${repoDoc._id}-${response.data.path}-${response.data.sha}`,
-                values: embeddings[0],
-                metadata: {
-                    repoId: String(repoDoc._id),
-                    filePath: response.data.path,
-                    fileSha: response.data.sha,
-                    type: "code",
-                    text: content.slice(0, 12000),
-                },
-            }]);
         }
 
         res.status(200).json({
             success: true,
             file: {
-                name: response.data.name,
                 path: response.data.path,
-                size: response.data.size,
-                sha: response.data.sha,
                 content,
+                size: response.data.size,
             },
         });
     } catch (error) {

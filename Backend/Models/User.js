@@ -1,7 +1,6 @@
-const express = require('express');
-const moongoose = require('mongoose');
+const mongoose = require('mongoose');
 
-const userSchema = new moongoose.Schema({
+const userSchema = new mongoose.Schema({
   githubId: {
     type: String,
     required: true,
@@ -14,16 +13,16 @@ const userSchema = new moongoose.Schema({
     type: String,
     required: true,
   },
-  avatar : {
+  avatar: {
     type: String,
-    required: true, 
+    required: true,
   },
-  accessToken : {
-    type : String,
-    required : true
-  }
-},{timestamps: true});
+  accessToken: {
+    type: String,
+    required: true,
+  },
+}, { timestamps: true });
 
-const User = moongoose.model('User', userSchema);
+const User = mongoose.model('User', userSchema);
 
 module.exports = User;

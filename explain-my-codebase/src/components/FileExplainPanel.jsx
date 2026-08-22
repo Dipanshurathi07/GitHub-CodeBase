@@ -7,7 +7,7 @@ const RISK_LABEL = {
   low: { text: 'Isolated / low risk', color: 'text-add', dot: 'bg-add' },
 }
 
-export default function FileExplainPanel({ selectedNode, selectedPath, file, onJumpTo }) {
+export default function FileExplainPanel({ selectedNode, selectedPath, file, summary, isSummaryLoading, onJumpTo }) {
   if (!selectedNode) {
     return (
       <div className="h-full flex flex-col items-center justify-center text-center px-8 text-text-faint">
@@ -49,19 +49,10 @@ export default function FileExplainPanel({ selectedNode, selectedPath, file, onJ
           <h3 className="text-xs font-semibold text-text-faint uppercase tracking-wide mb-2.5">
             What this file does
           </h3>
-          <p className="text-[14.5px] text-text-primary leading-relaxed">{explanation.summary}</p>
+          <p className="text-[14.5px] text-text-primary leading-relaxed whitespace-pre-line">
+            {isSummaryLoading ? 'Reading this file from the vector database...' : summary || explanation.summary}
+          </p>
         </section>
-
-        {file?.content && (
-          <section className="mt-7">
-            <h3 className="text-xs font-semibold text-text-faint uppercase tracking-wide mb-2.5">
-              Source
-            </h3>
-            <pre className="max-h-72 overflow-auto rounded-md border border-ink-border bg-ink px-3 py-3 text-xs leading-relaxed text-text-muted">
-              <code>{file.content}</code>
-            </pre>
-          </section>
-        )}
 
         {explanation.keyPoints.length > 0 && (
           <section className="mt-7">

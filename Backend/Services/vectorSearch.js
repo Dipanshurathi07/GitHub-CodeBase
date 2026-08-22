@@ -1,10 +1,10 @@
-const { MetaData } = require("../Models/MetaData");
+const MetaData = require("../Models/MetaData");
 const getEmbeddingsVector = require("../Utils/Embed");
 const pineconeIndex = require("../Utils/PineCone");
 
 const MIN_SCORE = 0.7;
 
-async function vectorSearch(query, repoId, topK = 5) {
+async function vectorSearch(query, repoId, topK = 5, filePath = null) {
     if (!query?.trim()) {
         throw new Error("Search query is required");
     }
@@ -14,7 +14,10 @@ async function vectorSearch(query, repoId, topK = 5) {
         vector: queryVector,
         topK,
         includeMetadata: true,
-        filter: { repoId: String(repoId) },
+        filter: {
+            repoId: String(repoId),
+            ...(filePath ? { filePath } : {}),
+        },
     });
 
     const matches = (response.matches || []).filter((match) => match.score >= MIN_SCORE);

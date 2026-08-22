@@ -31,6 +31,38 @@ export const fetchFile = createAsyncThunk(
   }
 );
 
+export const fetchFileSummary = createAsyncThunk(
+  'github/fetchFileSummary',
+  async ({ owner, repo, path }, { rejectWithValue }) => {
+    try {
+      const data = await request(`/api/github/file-summary/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path }),
+      });
+      return { path, summary: data.summary };
+    } catch (error) {
+      return rejectWithValue({ path, message: error.message });
+    }
+  }
+);
+
+export const fetchCodebaseAnswer = createAsyncThunk(
+  'github/fetchCodebaseAnswer',
+  async ({ owner, repo, query }, { rejectWithValue }) => {
+    try {
+      const data = await request(`/api/github/search/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query }),
+      });
+      return data.answer;
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
+  }
+);
+
 export const ingestRepository = createAsyncThunk(
   'github/ingestRepository',
   async ({ owner, repo }, { rejectWithValue }) => {
@@ -53,6 +85,8 @@ export const githubSlice = createSlice({
     indexedCount: 0,
     status: 'idle',
     error: null,
+    summariesByPath: {},
+    summaryLoadingPath: null,
   },
   reducers: {
     clearRepo(state) {
@@ -60,6 +94,8 @@ export const githubSlice = createSlice({
       state.tree = [];
       state.filesByPath = {};
       state.ingestStatus = 'idle';
+      state.summariesByPath = {};
+      state.summaryLoadingPath = null;
       state.indexedCount = 0;
       state.status = 'idle';
       state.error = null;
@@ -90,6 +126,20 @@ export const githubSlice = createSlice({
       .addCase(fetchFile.rejected, (state, action) => {
         state.status = 'failed';
         state.error = action.payload;
+      })
+      .addCase(fetchFileSummary.pending, (state, action) => {
+        state.summaryLoadingPath = action.meta.arg.path;
+      })
+      .addCase(fetchFileSummary.fulfilled, (state, action) => {
+        state.summaryLoadingPath = null;
+        state.summariesByPath[action.payload.path] = action.payload.summary;
+      })
+      .addCase(fetchFileSummary.rejected, (state, action) => {
+        state.summaryLoadingPath = null;
+        state.error = action.payload?.message || 'Unable to generate file summary';
+      })
+      .addCase(fetchCodebaseAnswer.rejected, (state, action) => {
+        state.error = action.payload || 'Unable to answer this question';
       })
       .addCase(ingestRepository.pending, (state) => {
         state.ingestStatus = 'loading';

@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
+import { useDispatch } from 'react-redux'
 import { Send, Sparkles } from 'lucide-react'
-import { mockChatSeed, mockChatReply } from '../data/mockData.js'
+import { mockChatSeed } from '../data/mockData.js'
+import { fetchCodebaseAnswer } from '../Slice/ReduxSlice/githubSlice.js'
 
 const SUGGESTIONS = [
   'Where does caching happen?',
@@ -8,7 +10,8 @@ const SUGGESTIONS = [
   'Where should I start reading?',
 ]
 
-export default function ChatPanel() {
+export default function ChatPanel({ owner, repo }) {
+  const dispatch = useDispatch()
   const [messages, setMessages] = useState(mockChatSeed)
   const [input, setInput] = useState('')
   const [isThinking, setIsThinking] = useState(false)
@@ -24,10 +27,15 @@ export default function ChatPanel() {
     setMessages((m) => [...m, { role: 'user', content: question }])
     setInput('')
     setIsThinking(true)
-    setTimeout(() => {
-      setMessages((m) => [...m, { role: 'assistant', content: mockChatReply(question) }])
-      setIsThinking(false)
-    }, 900)
+    dispatch(fetchCodebaseAnswer({ owner, repo, query: question }))
+      .unwrap()
+      .then((answer) => {
+        setMessages((m) => [...m, { role: 'assistant', content: answer }])
+      })
+      .catch((error) => {
+        setMessages((m) => [...m, { role: 'assistant', content: `I couldn't answer that: ${error}` }])
+      })
+      .finally(() => setIsThinking(false))
   }
 
   function handleSubmit(e) {

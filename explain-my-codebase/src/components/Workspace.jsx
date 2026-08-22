@@ -4,7 +4,7 @@ import { FolderTree, FileText, MessagesSquare } from 'lucide-react'
 import FileTree from './FileTree.jsx'
 import FileExplainPanel from './FileExplainPanel.jsx'
 import ChatPanel from './ChatPanel.jsx'
-import { fetchFile, ingestRepository } from '../Slice/ReduxSlice/githubSlice.js'
+import { fetchFile, fetchFileSummary, ingestRepository } from '../Slice/ReduxSlice/githubSlice.js'
 
 function findNodeByName(node, name, path = '') {
   const currentPath = path ? `${path}/${node.name}` : node.name
@@ -20,7 +20,7 @@ function findNodeByName(node, name, path = '') {
 
 export default function Workspace({ repoName }) {
   const dispatch = useDispatch()
-  const { tree: githubTree, filesByPath, ingestStatus, indexedCount, error } = useSelector((state) => state.github)
+  const { tree: githubTree, filesByPath, summariesByPath, summaryLoadingPath, ingestStatus, indexedCount, error } = useSelector((state) => state.github)
   const { user } = useSelector((state) => state.auth)
   const [selected, setSelected] = useState(null) // { node, path }
   const [mobileTab, setMobileTab] = useState('tree') // tree | explain | chat
@@ -38,6 +38,8 @@ export default function Workspace({ repoName }) {
     setSelected({ node, path })
     setMobileTab('explain')
     dispatch(fetchFile({ owner, repo, path }))
+      .unwrap()
+      .then(() => dispatch(fetchFileSummary({ owner, repo, path })))
   }
 
   function handleJumpTo(fileName) {
@@ -85,6 +87,8 @@ export default function Workspace({ repoName }) {
             selectedNode={selected?.node}
             selectedPath={selected?.path}
             file={selected ? filesByPath[selected.path] : null}
+            summary={selected ? summariesByPath[selected.path] : null}
+            isSummaryLoading={selected?.path === summaryLoadingPath}
             onJumpTo={handleJumpTo}
           />
         </div>
@@ -100,7 +104,7 @@ export default function Workspace({ repoName }) {
             </p>
           </div>
           <div className="h-[calc(100%-2.75rem)]">
-            <ChatPanel />
+            <ChatPanel owner={owner} repo={repo} />
           </div>
         </div>
       </div>
