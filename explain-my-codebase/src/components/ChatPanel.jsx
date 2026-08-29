@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useDispatch } from 'react-redux'
 import { Send, Sparkles } from 'lucide-react'
-import { mockChatSeed } from '../data/mockData.js'
 import { fetchCodebaseAnswer } from '../Slice/ReduxSlice/githubSlice.js'
 
 const SUGGESTIONS = [
@@ -10,9 +9,24 @@ const SUGGESTIONS = [
   'Where should I start reading?',
 ]
 
+function fallbackReply(question) {
+  const q = question.toLowerCase()
+
+  if (q.includes('cache')) return 'The cache logic usually lives near the repo index or query state code. Start with the file that owns the query state and the indexing layer.'
+  if (q.includes('mutat') || q.includes('retry')) return 'Mutations and retry behavior are typically handled in the request/update flow and the state wrapper around that call.'
+  if (q.includes('start') || q.includes('read')) return 'Start from the entry file and the main state layer, then follow the first file that owns requests or repository indexing.'
+
+  return 'I could not find a grounded answer in the indexed repo yet. Try asking about a specific file, function, or request flow.'
+}
+
 export default function ChatPanel({ owner, repo }) {
   const dispatch = useDispatch()
-  const [messages, setMessages] = useState(mockChatSeed)
+  const [messages, setMessages] = useState([
+    {
+      role: 'assistant',
+      content: 'Ask about this codebase and I will answer using the indexed files in this repo.',
+    },
+  ])
   const [input, setInput] = useState('')
   const [isThinking, setIsThinking] = useState(false)
   const scrollRef = useRef(null)
@@ -30,10 +44,10 @@ export default function ChatPanel({ owner, repo }) {
     dispatch(fetchCodebaseAnswer({ owner, repo, query: question }))
       .unwrap()
       .then((answer) => {
-        setMessages((m) => [...m, { role: 'assistant', content: answer }])
+        setMessages((m) => [...m, { role: 'assistant', content: answer || fallbackReply(question) }])
       })
       .catch((error) => {
-        setMessages((m) => [...m, { role: 'assistant', content: `I couldn't answer that: ${error}` }])
+        setMessages((m) => [...m, { role: 'assistant', content: fallbackReply(question) + ` (${error})` }])
       })
       .finally(() => setIsThinking(false))
   }
@@ -56,7 +70,7 @@ export default function ChatPanel({ owner, repo }) {
           </div>
         )}
 
-        {messages.length === 1 && (
+        {messages.length <= 1 && (
           <div className="flex flex-wrap gap-2 pt-1">
             {SUGGESTIONS.map((s) => (
               <button

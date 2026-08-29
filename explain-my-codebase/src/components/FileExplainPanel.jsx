@@ -1,5 +1,4 @@
 import { FileCode2, Circle, ArrowUpRight, MousePointerClick } from 'lucide-react'
-import { mockExplanations } from '../data/mockData.js'
 
 const RISK_LABEL = {
   high: { text: 'Core / high blast-radius', color: 'text-del', dot: 'bg-del' },
@@ -19,13 +18,13 @@ export default function FileExplainPanel({ selectedNode, selectedPath, file, sum
     )
   }
 
-  const explanation = mockExplanations[selectedNode.name] || {
-    summary: "No explanation generated yet for this file — in a live build, this is where the AI summary would stream in.",
-    keyPoints: [],
-    dependents: [],
-    risk: 'low',
-  }
-  const risk = RISK_LABEL[explanation.risk]
+  const fallbackSummary = summary || file?.content
+    ? 'Reading the selected file and generating a live explanation…'
+    : 'No explanation generated yet for this file. Select a file and let the backend summarize it.'
+
+  const risk = RISK_LABEL.low
+  const keyPoints = []
+  const dependents = []
 
   return (
     <div className="h-full flex flex-col">
@@ -50,17 +49,17 @@ export default function FileExplainPanel({ selectedNode, selectedPath, file, sum
             What this file does
           </h3>
           <p className="text-[14.5px] text-text-primary leading-relaxed whitespace-pre-line">
-            {isSummaryLoading ? 'Reading this file from the vector database...' : summary || explanation.summary}
+            {isSummaryLoading ? 'Reading this file from the vector database...' : summary || fallbackSummary}
           </p>
         </section>
 
-        {explanation.keyPoints.length > 0 && (
+        {keyPoints.length > 0 && (
           <section className="mt-7">
             <h3 className="text-xs font-semibold text-text-faint uppercase tracking-wide mb-2.5">
               Key points
             </h3>
             <ul className="space-y-2.5">
-              {explanation.keyPoints.map((point, i) => (
+              {keyPoints.map((point, i) => (
                 <li key={i} className="flex gap-2.5 text-[14px] text-text-muted leading-relaxed">
                   <span className="text-add font-mono mt-[2px] shrink-0">+</span>
                   {point}
@@ -70,13 +69,13 @@ export default function FileExplainPanel({ selectedNode, selectedPath, file, sum
           </section>
         )}
 
-        {explanation.dependents.length > 0 && (
+        {dependents.length > 0 && (
           <section className="mt-7">
             <h3 className="text-xs font-semibold text-text-faint uppercase tracking-wide mb-2.5">
               Used by
             </h3>
             <div className="flex flex-wrap gap-2">
-              {explanation.dependents.map((dep) => (
+              {dependents.map((dep) => (
                 <button
                   key={dep}
                   onClick={() => onJumpTo?.(dep)}
