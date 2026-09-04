@@ -6,14 +6,16 @@
   box-sizing: border-box;
 }
 
-html, body {
-  background-color: #0B0D12;
+html,
+body {
+  background-color: #0b0d12;
+  overflow-x: hidden;
 }
 
 body {
-  font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
-  color: #E7E9F0;
+  color: #e7e9f0;
 }
 
 ::selection {
@@ -34,7 +36,7 @@ body {
   background-clip: padding-box;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #2C3242;
+  background: #2c3242;
   background-clip: padding-box;
 }
 
@@ -49,13 +51,15 @@ button:focus-visible,
 input:focus-visible,
 textarea:focus-visible,
 [tabindex]:focus-visible {
-  outline: 2px solid #7C9CFF;
+  outline: 2px solid #7c9cff;
   outline-offset: 2px;
   border-radius: 4px;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;

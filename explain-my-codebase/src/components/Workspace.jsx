@@ -62,7 +62,7 @@ export default function Workspace({ repoName }) {
       <div className="grid lg:grid-cols-[260px_1fr_360px] gap-4 h-[calc(100vh-9.5rem)] lg:h-[calc(100vh-8rem)]">
         {/* File tree */}
         <div
-          className={`${mobileTab === 'tree' ? 'block' : 'hidden'} lg:block rounded-lg border border-ink-border bg-ink-panel overflow-y-auto scrollbar-thin`}
+          className={`${mobileTab === 'tree' ? 'block' : 'hidden'} lg:block min-w-0 rounded-lg border border-ink-border bg-ink-panel overflow-y-auto scrollbar-thin`}
         >
           <div className="px-4 py-3 border-b border-ink-border sticky top-0 bg-ink-panel z-10">
             <p className="text-xs font-semibold text-text-faint uppercase tracking-wide">
@@ -81,7 +81,7 @@ export default function Workspace({ repoName }) {
 
         {/* Explain panel */}
         <div
-          className={`${mobileTab === 'explain' ? 'block' : 'hidden'} lg:block rounded-lg border border-ink-border bg-ink-panel overflow-hidden`}
+          className={`${mobileTab === 'explain' ? 'block' : 'hidden'} lg:block min-w-0 rounded-lg border border-ink-border bg-ink-panel overflow-hidden`}
         >
           <FileExplainPanel
             selectedNode={selected?.node}
@@ -95,7 +95,7 @@ export default function Workspace({ repoName }) {
 
         {/* Chat panel */}
         <div
-          className={`${mobileTab === 'chat' ? 'block' : 'hidden'} lg:block rounded-lg border border-ink-border bg-ink-panel overflow-hidden`}
+          className={`${mobileTab === 'chat' ? 'block' : 'hidden'} lg:block min-w-0 rounded-lg border border-ink-border bg-ink-panel overflow-hidden`}
         >
           <div className="px-4 py-3 border-b border-ink-border flex items-center gap-2">
             <MessagesSquare size={14} className="text-signal" />

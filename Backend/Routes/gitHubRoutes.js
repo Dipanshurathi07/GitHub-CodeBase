@@ -33,6 +33,29 @@ function buildFileSummaryFallback(path, content) {
     return `Purpose: ${path} contains ${lineCount} lines of source code. Its responsibility is defined by the executable statements and exports visible in the file; the AI service was temporarily unavailable, so this explanation is generated directly from the file contents.\n\nDependencies: The file references ${dependencyText}. These imports provide the external services, helpers, or libraries used by the implementation.\n\nFlow: Execution starts with the declarations and imports at the top of the file, then proceeds through the functions or handlers defined here. The main visible symbols are ${symbolText}. Inputs are transformed by the statements in those symbols and any returned values, responses, or exports provide the file's output to its callers. Details that are not visible in this file cannot be confirmed without its callers.\n\nRisk: medium - this file may affect callers that depend on its exports or returned values.\n\nWhen to touch this: Update it when the behavior represented by its declarations, imports, or exported API needs to change.\n\nSuggested questions:\n1. What does ${symbols[0] || "the main exported symbol"} do?\n2. Which caller uses this file?\n3. What input or error case should be tested?`;
 }
 
+function buildFileSummaryPrompt(path, content) {
+    return `You are a senior developer explaining one source file to a teammate.
+
+Analyze only the code between FILE CONTENT markers. Do not repeat these instructions or describe the prompt.
+Return plain text with exactly these labels, in this order:
+Purpose: Explain what the complete file does in 3 or 4 sentences.
+Dependencies: Explain the important imports or external services in 2 or 3 sentences.
+Flow: Explain the main execution flow in 4 to 6 sentences.
+Risk: Choose low, medium, or high and give one short reason.
+When to touch this: Give one practical maintenance scenario.
+Suggested questions:
+1. Ask about a real symbol from the file.
+2. Ask about another real symbol from the file.
+3. Ask about a real behavior visible in the file.
+
+Use only facts visible in the file. Never invent symbols or behavior. Keep the response between 160 and 300 words.
+
+FILE PATH: ${path}
+FILE CONTENT START
+${content.slice(0, 18000)}
+FILE CONTENT END`;
+}
+
 function findStoredFilesForQuery(files, query) {
     const terms = query.toLowerCase().split(/\W+/).filter((term) => term.length > 2);
     return files
@@ -40,6 +63,7 @@ function findStoredFilesForQuery(files, query) {
             file,
             score: terms.reduce((score, term) => score + (file.content.toLowerCase().includes(term) ? 1 : 0), 0),
         }))
+        .filter(({ score }) => score > 0)
         .sort((left, right) => right.score - left.score)
         .slice(0, 3)
         .map(({ file }) => ({
@@ -178,12 +202,18 @@ router.post("/search/:owner/:repo", async (req, res) => {
         }
 
         if (retrievedChunks.length === 0) {
-            return res.status(200).json({ 
-                success: true, 
-                answer: "No relevant code found for your query in the indexed codebase.",
-                chunks: [],
-                chunkCount: 0
-            });
+            let answer;
+            try {
+                answer = await getLLMAnswer(
+                    `You are a friendly assistant inside a codebase explorer. Reply naturally to the user's message. If it is casual conversation, answer warmly in one or two sentences. If it asks about code but no matching file context is available, say that clearly and ask them to mention a file, function, or route. Do not invent facts about the repository. User message: ${userQuery}`,
+                    { maxAttempts: 1, maxOutputTokens: 250 }
+                );
+            } catch (error) {
+                answer = /^(hi|hii|hello|hey|namaste|kya haal)/i.test(userQuery.trim())
+                    ? "Main theek hoon. Aap apne codebase ke baare me kuch pooch sakte hain."
+                    : "Is sawal ke liye matching code context nahi mila. Kisi file, function, ya route ka naam batayein.";
+            }
+            return res.status(200).json({ success: true, answer, chunks: [], chunkCount: 0 });
         }
 
         const prompt = buildAugmentationPrompt(userQuery, retrievedChunks);
@@ -242,7 +272,7 @@ router.post("/file-summary/:owner/:repo", async (req, res) => {
             });
         }
 
-        const prompt = `${buildAugmentationPrompt(
+        const prompt = buildFileSummaryPrompt(path, chunks[0].text); /*
             `Analyze ${path} and produce a detailed but easy-to-understand developer summary. Explain the complete responsibility of the file and how its important parts work together, not just its first function. Cover the main routes, helper functions, data flow, external services, database operations, validation, and error handling that are visible in the code. Use only facts supported by the provided code context. Identify the file's actual imports, functions, classes, constants, routes, models, or services and explain why the important symbols are used. Do not invent symbols, dependencies, callers, or behavior. If a detail is not visible in the context, say that it is not visible rather than guessing. Keep the complete response between 160 and 300 words.
 
 Return plain text only. Do not use Markdown headings, code fences, a Source section, or repeat the file name as a heading.
@@ -259,7 +289,7 @@ Suggested questions:
 
 Keep the answer between 160 and 300 words so it is complete but easy to scan. Every symbol must be visible in the file; do not guess.`,
             chunks
-        )}`;
+        )}`; */
         let summary;
         try {
             summary = await getLLMAnswer(prompt, {

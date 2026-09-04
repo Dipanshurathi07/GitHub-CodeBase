@@ -48,7 +48,7 @@ export default function FileExplainPanel({ selectedNode, selectedPath, file, sum
           <h3 className="text-xs font-semibold text-text-faint uppercase tracking-wide mb-2.5">
             What this file does
           </h3>
-          <p className="text-[14.5px] text-text-primary leading-relaxed whitespace-pre-line">
+          <p className="max-w-full break-words text-[14.5px] text-text-primary leading-relaxed whitespace-pre-line">
             {isSummaryLoading ? 'Reading this file from the vector database...' : summary || fallbackSummary}
           </p>
         </section>
@@ -58,7 +58,7 @@ export default function FileExplainPanel({ selectedNode, selectedPath, file, sum
             <h3 className="text-xs font-semibold text-text-faint uppercase tracking-wide mb-2.5">
               Source code
             </h3>
-            <pre className="max-h-[520px] overflow-auto rounded-md border border-ink-border bg-ink px-4 py-3 text-[12px] leading-relaxed text-text-muted whitespace-pre scrollbar-thin">
+            <pre className="w-full max-w-full max-h-[520px] overflow-x-auto overflow-y-auto rounded-md border border-ink-border bg-ink px-4 py-3 text-[12px] leading-relaxed text-text-muted whitespace-pre scrollbar-thin">
               <code>{file.content}</code>
             </pre>
           </section>

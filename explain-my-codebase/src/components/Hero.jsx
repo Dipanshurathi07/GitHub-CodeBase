@@ -20,10 +20,10 @@ export default function Hero({ onSubmit }) {
   }
 
   return (
-    <main className="max-w-[1400px] mx-auto px-4 sm:px-8 pt-10 sm:pt-24 pb-14 sm:pb-24 overflow-hidden">
+    <main className="w-full min-w-0 max-w-[1400px] mx-auto px-4 sm:px-8 pt-10 sm:pt-24 pb-14 sm:pb-24 overflow-hidden">
       <div className="grid lg:grid-cols-[1.1fr_1fr] gap-10 sm:gap-16 items-center">
         {/* Left: copy + form */}
-        <div>
+        <div className="min-w-0">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-signal-soft bg-signal-soft/20 text-signal text-xs font-mono mb-6">
             <Sparkles size={12} />
             AI GitHub onboarding
@@ -46,7 +46,7 @@ export default function Hero({ onSubmit }) {
               Repository URL
             </label>
             <div className="flex flex-col sm:flex-row gap-2.5">
-              <div className="relative flex-1">
+              <div className="relative min-w-0 flex-1">
                 <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-faint font-mono text-xs sm:text-sm select-none">
                   github.com/
                 </span>
@@ -56,7 +56,7 @@ export default function Hero({ onSubmit }) {
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
                   placeholder="tanstack/query"
-                  className="w-full bg-ink-panel border border-ink-border rounded-md pl-[6.1rem] sm:pl-[6.6rem] pr-3.5 py-3 text-sm font-mono text-text-primary placeholder:text-text-faint focus:border-signal/60 focus:outline-none transition-colors"
+                  className="block w-full min-w-0 bg-ink-panel border border-ink-border rounded-md pl-[6.1rem] sm:pl-[6.6rem] pr-3.5 py-3 text-sm font-mono text-text-primary placeholder:text-text-faint focus:border-signal/60 focus:outline-none transition-colors"
                 />
               </div>
               <button
@@ -86,7 +86,7 @@ export default function Hero({ onSubmit }) {
         </div>
 
         {/* Right: signature diff terminal */}
-        <div className="flex justify-center lg:justify-end">
+        <div className="flex min-w-0 justify-center lg:justify-end">
           <DiffTerminal />
         </div>
       </div>
