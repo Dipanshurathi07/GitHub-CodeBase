@@ -1,7 +1,8 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { apiUrl } from '../../lib/api.js';
 
 async function request(url, options) {
-  const response = await fetch(url, { credentials: 'include', ...options });
+  const response = await fetch(apiUrl(url), { credentials: 'include', ...options });
   const body = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(body.message || body.error || 'GitHub request failed');
   return body;

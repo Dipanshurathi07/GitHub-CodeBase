@@ -13,14 +13,20 @@ connectDB();
 const app = express();
 app.use(express.json());
 app.use(cors({
-  origin: 'http://localhost:5173', // frontend URL
+  origin: [
+    'http://localhost:5173',
+    'https://git-hub-code-base-58yx.vercel.app',
+  ],
   credentials: true // cookies allow karne ke liye
 }));
 app.use(session({
   secret: process.env.SESSION_SECRET || "change-me-in-production",
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: false }
+  cookie: {
+    secure: process.env.NODE_ENV === "production",
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+  }
 }));
 
 app.use(passport.initialize());

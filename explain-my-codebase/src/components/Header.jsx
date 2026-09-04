@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { GitBranch, ArrowLeft, Github, LogOut, ChevronDown } from 'lucide-react'
 import { clearUser, fetchCurrentUser } from '../Slice/ReduxSlice/authSlice.js'
+import { apiUrl } from '../lib/api.js'
 
 export default function Header({ view, repoName, onReset }) {
   const dispatch = useDispatch()
@@ -21,14 +22,14 @@ export default function Header({ view, repoName, onReset }) {
 
   function handleGitHubSignIn() {
     const popup = window.open(
-      '/auth/github',
+      apiUrl('/auth/github'),
       'github-signin',
       'width=500,height=700,scrollbars=yes,resizable=yes'
     )
 
     if (!popup) {
       setPopupBlocked(true)
-      window.location.href = '/auth/github'
+      window.location.href = apiUrl('/auth/github')
       return
     }
 
@@ -43,7 +44,7 @@ export default function Header({ view, repoName, onReset }) {
   }
 
   async function handleLogout() {
-    await fetch('/auth/logout', { credentials: 'include' })
+    await fetch(apiUrl('/auth/logout'), { credentials: 'include' })
     dispatch(clearUser())
     setIsProfileOpen(false)
   }
