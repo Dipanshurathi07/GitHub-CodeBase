@@ -18,8 +18,8 @@ export default function FileExplainPanel({ selectedNode, selectedPath, file, sum
     )
   }
 
-  const fallbackSummary = summary || file?.content
-    ? 'Reading the selected file and generating a live explanation…'
+  const fallbackSummary = file?.content
+    ? 'The file was loaded, but its explanation could not be generated yet.'
     : 'No explanation generated yet for this file. Select a file and let the backend summarize it.'
 
   const risk = RISK_LABEL.low
@@ -52,6 +52,17 @@ export default function FileExplainPanel({ selectedNode, selectedPath, file, sum
             {isSummaryLoading ? 'Reading this file from the vector database...' : summary || fallbackSummary}
           </p>
         </section>
+
+        {file?.content && (
+          <section className="mt-8">
+            <h3 className="text-xs font-semibold text-text-faint uppercase tracking-wide mb-2.5">
+              Source code
+            </h3>
+            <pre className="max-h-[520px] overflow-auto rounded-md border border-ink-border bg-ink px-4 py-3 text-[12px] leading-relaxed text-text-muted whitespace-pre scrollbar-thin">
+              <code>{file.content}</code>
+            </pre>
+          </section>
+        )}
 
         {keyPoints.length > 0 && (
           <section className="mt-7">

@@ -16,6 +16,38 @@ const router = express.Router();
 const IGNORED_PATHS = /(^|\/)(node_modules|\.git|dist|build|coverage)(\/|$)/;
 const TREE_IGNORED_PATHS = /(^|\/)(node_modules|\.git|dist|build|coverage|\.next|\.vite|vendor)(\/|$)/i;
 const TEXT_EXTENSIONS = /\.(js|jsx|ts|tsx|mjs|cjs|json|md|css|scss|html|yml|yaml|py|java|go|rs|rb|php|sql|sh)$/i;
+const VECTOR_INDEXING_ENABLED = process.env.ENABLE_VECTOR_INDEXING === "true";
+const activeIndexJobs = new Set();
+
+function buildFileSummaryFallback(path, content) {
+    const imports = [...content.matchAll(/(?:require\(['"]([^'"]+)|from ['"]([^'"]+))/g)]
+        .map((match) => match[1] || match[2])
+        .slice(0, 6);
+    const symbols = [...content.matchAll(/(?:function|class|const|let|var)\s+([A-Za-z_$][\w$]*)/g)]
+        .map((match) => match[1])
+        .slice(0, 10);
+    const lineCount = content.split("\n").length;
+    const dependencyText = imports.length ? imports.join(", ") : "no external imports detected";
+    const symbolText = symbols.length ? symbols.join(", ") : "no named declarations detected";
+
+    return `Purpose: ${path} contains ${lineCount} lines of source code. Its responsibility is defined by the executable statements and exports visible in the file; the AI service was temporarily unavailable, so this explanation is generated directly from the file contents.\n\nDependencies: The file references ${dependencyText}. These imports provide the external services, helpers, or libraries used by the implementation.\n\nFlow: Execution starts with the declarations and imports at the top of the file, then proceeds through the functions or handlers defined here. The main visible symbols are ${symbolText}. Inputs are transformed by the statements in those symbols and any returned values, responses, or exports provide the file's output to its callers. Details that are not visible in this file cannot be confirmed without its callers.\n\nRisk: medium - this file may affect callers that depend on its exports or returned values.\n\nWhen to touch this: Update it when the behavior represented by its declarations, imports, or exported API needs to change.\n\nSuggested questions:\n1. What does ${symbols[0] || "the main exported symbol"} do?\n2. Which caller uses this file?\n3. What input or error case should be tested?`;
+}
+
+function findStoredFilesForQuery(files, query) {
+    const terms = query.toLowerCase().split(/\W+/).filter((term) => term.length > 2);
+    return files
+        .map((file) => ({
+            file,
+            score: terms.reduce((score, term) => score + (file.content.toLowerCase().includes(term) ? 1 : 0), 0),
+        }))
+        .sort((left, right) => right.score - left.score)
+        .slice(0, 3)
+        .map(({ file }) => ({
+            filePath: file.filePath,
+            text: file.content.slice(0, 6000),
+            metadata: { filePath: file.filePath, content: file.content.slice(0, 6000) },
+        }));
+}
 
 async function persistFile({ owner, repo, repoDoc, file }) {
     const content = Buffer.from(file.content, "base64").toString("utf-8");
@@ -115,6 +147,7 @@ router.get("/contents/:owner/:repo", async (req, res) => {
 });
 
 router.post("/search/:owner/:repo", async (req, res) => {
+    let retrievedChunks = [];
     try {
         const { owner, repo } = req.params;
         const userQuery = req.body.query;
@@ -129,7 +162,20 @@ router.post("/search/:owner/:repo", async (req, res) => {
             return res.status(404).json({ success: false, message: "Repository is not indexed yet" });
         }
 
-        const retrievedChunks = await vectorSearch(userQuery, repoDoc._id);
+        if (VECTOR_INDEXING_ENABLED) {
+            try {
+                retrievedChunks = await vectorSearch(userQuery, repoDoc._id);
+            } catch (error) {
+                console.error("Vector search unavailable:", error.message);
+            }
+        }
+
+        if (retrievedChunks.length === 0) {
+            const indexedFiles = await FileContent.find({ repoId: repoDoc._id })
+                .select("filePath content")
+                .lean();
+            retrievedChunks = findStoredFilesForQuery(indexedFiles, userQuery);
+        }
 
         if (retrievedChunks.length === 0) {
             return res.status(200).json({ 
@@ -141,7 +187,14 @@ router.post("/search/:owner/:repo", async (req, res) => {
         }
 
         const prompt = buildAugmentationPrompt(userQuery, retrievedChunks);
-        const answer = await getLLMAnswer(prompt);
+        let answer;
+        try {
+            answer = await getLLMAnswer(prompt, { maxAttempts: 1, maxOutputTokens: 700 });
+        } catch (error) {
+            console.error("Chat fallback:", error.message);
+            const files = [...new Set(retrievedChunks.map((chunk) => chunk.filePath).filter(Boolean))];
+            answer = `The AI service is temporarily unavailable, but the repository context was loaded. Relevant files: ${files.join(", ") || "stored repository files"}. Try this question again after the Gemini service recovers.`;
+        }
 
         res.status(200).json({ 
             success: true, 
@@ -190,7 +243,7 @@ router.post("/file-summary/:owner/:repo", async (req, res) => {
         }
 
         const prompt = `${buildAugmentationPrompt(
-            `Analyze ${path} and produce a detailed but easy-to-understand developer summary. Explain the complete responsibility of the file and how its important parts work together, not just its first function. Cover the main routes, helper functions, data flow, external services, database operations, validation, and error handling that are visible in the code. Use only facts supported by the provided code context. Identify the file's actual imports, functions, classes, constants, routes, models, or services and explain why the important symbols are used. Do not invent symbols, dependencies, callers, or behavior. If a detail is not visible in the context, say that it is not visible rather than guessing. Keep the complete response between 250 and 400 words.
+            `Analyze ${path} and produce a detailed but easy-to-understand developer summary. Explain the complete responsibility of the file and how its important parts work together, not just its first function. Cover the main routes, helper functions, data flow, external services, database operations, validation, and error handling that are visible in the code. Use only facts supported by the provided code context. Identify the file's actual imports, functions, classes, constants, routes, models, or services and explain why the important symbols are used. Do not invent symbols, dependencies, callers, or behavior. If a detail is not visible in the context, say that it is not visible rather than guessing. Keep the complete response between 160 and 300 words.
 
 Return plain text only. Do not use Markdown headings, code fences, a Source section, or repeat the file name as a heading.
 Use exactly this compact format:
@@ -207,10 +260,17 @@ Suggested questions:
 Keep the answer between 160 and 300 words so it is complete but easy to scan. Every symbol must be visible in the file; do not guess.`,
             chunks
         )}`;
-        const summary = await getLLMAnswer(prompt, {
-            temperature: 0.2,
-            maxOutputTokens: 1000,
-        });
+        let summary;
+        try {
+            summary = await getLLMAnswer(prompt, {
+                temperature: 0.2,
+                maxAttempts: 2,
+                maxOutputTokens: 1600,
+            });
+        } catch (error) {
+            console.error("File summary fallback:", error.message);
+            summary = buildFileSummaryFallback(path, chunks[0].text);
+        }
 
         return res.status(200).json({ success: true, summary });
     } catch (error) {
@@ -250,6 +310,20 @@ router.post("/ingest/:owner/:repo", async (req, res) => {
             { upsert: true, returnDocument: "after", setDefaultsOnInsert: true }
         );
 
+        const jobKey = `${owner}/${repo}/${branchResponse.data.commit.sha}`;
+        const storedFileCount = await FileContent.countDocuments({ repoId: repoDoc._id });
+        const alreadyStored = repoDoc.lastCommitSha === branchResponse.data.commit.sha && storedFileCount > 0;
+        if (alreadyStored || activeIndexJobs.has(jobKey)) {
+            return res.status(200).json({
+                success: true,
+                repository: repoResponse.data,
+                tree,
+                files: [],
+                indexed: storedFileCount,
+                indexingStarted: false,
+            });
+        }
+
         const candidates = tree
             .filter((item) => item.type === "blob" && TEXT_EXTENSIONS.test(item.path))
             .filter((item) => !IGNORED_PATHS.test(item.path))
@@ -264,6 +338,7 @@ router.post("/ingest/:owner/:repo", async (req, res) => {
             indexingStarted: true,
         });
 
+        activeIndexJobs.add(jobKey);
         void (async () => {
             try {
                 const files = [];
@@ -276,27 +351,31 @@ router.post("/ingest/:owner/:repo", async (req, res) => {
                 }
 
                 const repoName = `${owner}/${repo}`;
-                await indexFiles(files, repoDoc._id, repoName);
-                const treeText = treeToText(tree, `${owner}/${repo}`);
-                const treeEmbeddings = await getEmbeddingsVector([treeText]);
-                const treeVectorId = `${repoDoc._id}-tree-${branchResponse.data.commit.sha}`;
-                await upsertVectors([{
-                    id: treeVectorId,
-                    values: treeEmbeddings[0],
-                    metadata: {
-                        repoId: String(repoDoc._id),
-                        repoName,
-                        filePaths: tree
-                            .filter((item) => item.type === "blob")
-                            .map((item) => item.path),
-                        commitSha: branchResponse.data.commit.sha,
-                        type: "tree",
-                        text: treeText,
-                    },
-                }]);
+                if (VECTOR_INDEXING_ENABLED) {
+                    await indexFiles(files, repoDoc._id, repoName);
+                    const treeText = treeToText(tree, `${owner}/${repo}`);
+                    const treeEmbeddings = await getEmbeddingsVector([treeText]);
+                    const treeVectorId = `${repoDoc._id}-tree-${branchResponse.data.commit.sha}`;
+                    await upsertVectors([{
+                        id: treeVectorId,
+                        values: treeEmbeddings[0],
+                        metadata: {
+                            repoId: String(repoDoc._id),
+                            repoName,
+                            filePaths: tree
+                                .filter((item) => item.type === "blob")
+                                .map((item) => item.path),
+                            commitSha: branchResponse.data.commit.sha,
+                            type: "tree",
+                            text: treeText,
+                        },
+                    }]);
+                }
                 console.log(`Repository indexing complete: ${owner}/${repo}, files=${files.length}`);
             } catch (error) {
                 console.error(`Repository indexing failed: ${owner}/${repo}`, error);
+            } finally {
+                activeIndexJobs.delete(jobKey);
             }
         })();
     } catch (error) {
