@@ -16,6 +16,7 @@ app.use(cors({
   origin: [
     'http://localhost:5173',
     'https://git-hub-code-base-58yx.vercel.app',
+    'https://git-hub-code-base-pi.vercel.app/'
   ],
   credentials: true // cookies allow karne ke liye
 }));
