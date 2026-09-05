@@ -6,7 +6,7 @@ dotenv.config();
 
 const GITHUB_CLIENT_ID = process.env.GITHUB_CLIENT_ID || process.env.GitHub_Client_Id;
 const GITHUB_CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET || process.env.GitHub_Client_Secret;
-const GITHUB_CALLBACK_URL = process.env.GITHUB_CALLBACK_URL || 'http://localhost:3000/auth/github/callback';
+const GITHUB_CALLBACK_URL = process.env.GITHUB_CALLBACK_URL || 'https://github-codebase.onrender.com/auth/github/callback';
 const GitHubStrategy = require('passport-github').Strategy;
 
 passport.serializeUser((user, done) => {
