@@ -15,7 +15,7 @@ app.use(express.json());
 app.use(cors({
   origin: [
     'http://localhost:5173',
-    'git-hub-code-base-kq4b.vercel.app',
+    'https://github-codebase.vercel.app',
   ],
   credentials: true // cookies allow karne ke liye
 }));

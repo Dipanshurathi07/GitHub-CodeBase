@@ -14,7 +14,7 @@ router.get('/auth/github/callback',
   passport.authenticate('github', { failureRedirect: '/login-failed' }), //passport.authenticate() middleware ka use kar rahe hai req.user exist or not check karne ke liye
   (req, res) => {
     // Success — frontend pe wapas bhejo
-     res.redirect(process.env.FRONTEND_URL || 'https://git-hub-code-base-58yx.vercel.app');
+    res.redirect(process.env.FRONTEND_URL || 'https://github-codebase.vercel.app');
   }
 );
 
