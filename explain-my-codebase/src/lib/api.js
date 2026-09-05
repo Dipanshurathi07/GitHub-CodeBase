@@ -1,5 +1,5 @@
 const configuredBackendUrl = import.meta.env.VITE_BACKEND_URL
-const productionBackendUrl = 'https://githubcodebasebackend-web11whb.b4a.run'
+const productionBackendUrl = 'https://github-codebase.onrender.com/'
 
 export const API_BASE_URL = (configuredBackendUrl || productionBackendUrl).replace(/\/$/, '')
 
