@@ -73,6 +73,19 @@ function findStoredFilesForQuery(files, query) {
         }));
 }
 
+function buildLocalContextAnswer(query, chunks) {
+    const terms = query.toLowerCase().split(/\W+/).filter((term) => term.length > 2);
+    const matches = chunks.flatMap((chunk) => {
+        const lines = chunk.text.split("\n").filter((line) => {
+            const normalized = line.toLowerCase();
+            return terms.some((term) => normalized.includes(term));
+        }).slice(0, 4);
+        return lines.map((line) => `${chunk.filePath}: ${line.trim()}`);
+    }).slice(0, 8);
+
+    return `Gemini is temporarily unavailable, but I found relevant code for your question. The matching code appears in: ${[...new Set(chunks.map((chunk) => chunk.filePath))].join(", ")}. It is used to store or process the file information needed by later requests, such as metadata, imports, functions, classes, and file content. Relevant lines:\n${matches.join("\n") || "No exact matching line was found; open the listed files to inspect their flow."}`;
+}
+
 function isCasualMessage(message) {
     return /^(hi+|hello+|hey+|hii+|namaste|how are you|how r u|kya haal(?: hai)?|kaise ho|kese ho|what's up|sup|good morning|good evening|good night|thanks|thank you|ok|okay)[!?.,\s]*$/i.test(message.trim());
 }
@@ -235,8 +248,7 @@ router.post("/search/:owner/:repo", async (req, res) => {
             answer = await getLLMAnswer(prompt, { maxAttempts: 5, maxOutputTokens: 700 });
         } catch (error) {
             console.error("Chat fallback:", error.message);
-            const files = [...new Set(retrievedChunks.map((chunk) => chunk.filePath).filter(Boolean))];
-            answer = `The AI service is temporarily unavailable, but the repository context was loaded. Relevant files: ${files.join(", ") || "stored repository files"}. Try this question again after the Gemini service recovers.`;
+            answer = buildLocalContextAnswer(userQuery, retrievedChunks);
         }
 
         res.status(200).json({ 
