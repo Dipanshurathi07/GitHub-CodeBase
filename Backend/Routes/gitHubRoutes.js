@@ -80,8 +80,11 @@ function findStoredFilesForQuery(files, query) {
 
 function buildLocalContextAnswer(query, chunks) {
     const normalizedQuery = query.toLowerCase();
+    const hinglish = /\b(hinglish|hindi|roman|kyu|kya|kaise|kese|mujhe|batao|samjhao|hai|h|kr|kar|me|mera|meri|isse|iska|chahiye|do|dena)\b/i.test(query);
     if (normalizedQuery.includes("octokit")) {
-        return "Octokit is the GitHub API client used by this application. In Backend/Utils/Octokit.js, createOctokit(accessToken) creates an Octokit instance and passes the GitHub access token through the auth option. Backend/Routes/gitHubRoutes.js calls createOctokit when it needs to list repositories, read repository contents, or fetch branches and trees. This keeps GitHub API setup in one helper and lets the routes reuse authenticated or unauthenticated clients.";
+        return hinglish
+            ? "Octokit GitHub API client hai. Backend/Utils/Octokit.js me createOctokit(accessToken) Octokit instance banata hai aur access token ko auth option me pass karta hai. Backend/Routes/gitHubRoutes.js ise repositories, files, branches aur trees GitHub se fetch karne ke liye use karta hai. Isse GitHub API setup ek helper me centralized rehta hai."
+            : "Octokit is the GitHub API client used by this application. In Backend/Utils/Octokit.js, createOctokit(accessToken) creates an Octokit instance and passes the GitHub access token through the auth option. Backend/Routes/gitHubRoutes.js calls createOctokit when it needs to list repositories, read repository contents, or fetch branches and trees. This keeps GitHub API setup in one helper and lets the routes reuse authenticated or unauthenticated clients.";
     }
 
     const terms = query.toLowerCase().split(/\W+/).filter((term) => term.length > 2);

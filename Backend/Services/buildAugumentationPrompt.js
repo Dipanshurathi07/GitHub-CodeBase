@@ -10,6 +10,9 @@
  */
 function buildAugmentationPrompt(userQuery, retrievedChunks) {
   let context = "";
+  const languageInstruction = /\b(hinglish|hindi|roman|kyu|kya|kaise|kese|mujhe|batao|samjhao|hai|h|kr|kar|me|mera|meri|isse|iska|chahiye|do|dena)\b/i.test(userQuery)
+    ? "Answer in simple Hinglish using Roman script, because the user asked in Hinglish. Keep technical names and code symbols in English."
+    : "Answer in the same language as the user's question.";
 
   for (let index = 0; index < retrievedChunks.length; index += 1) {
     const chunk = retrievedChunks[index];
@@ -33,6 +36,7 @@ Rules:
 - Mention the specific file name(s) in your answer.
 - If the context is insufficient, say "I couldn't find this in the indexed codebase".
 - Be concise and technical.
+- ${languageInstruction}
 
 Context from codebase:
 ${context}
