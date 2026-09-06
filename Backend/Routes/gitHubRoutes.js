@@ -206,7 +206,7 @@ router.post("/search/:owner/:repo", async (req, res) => {
             try {
                 answer = await getLLMAnswer(
                     `You are a friendly assistant inside a codebase explorer. Reply naturally to the user's message. If it is casual conversation, answer warmly in one or two sentences. If it asks about code but no matching file context is available, say that clearly and ask them to mention a file, function, or route. Do not invent facts about the repository. User message: ${userQuery}`,
-                    { maxAttempts: 1, maxOutputTokens: 250 }
+                    { maxAttempts: 5, maxOutputTokens: 250 }
                 );
             } catch (error) {
                 answer = /^(hi|hii|hello|hey|namaste|kya haal)/i.test(userQuery.trim())
@@ -219,7 +219,7 @@ router.post("/search/:owner/:repo", async (req, res) => {
         const prompt = buildAugmentationPrompt(userQuery, retrievedChunks);
         let answer;
         try {
-            answer = await getLLMAnswer(prompt, { maxAttempts: 1, maxOutputTokens: 700 });
+            answer = await getLLMAnswer(prompt, { maxAttempts: 5, maxOutputTokens: 700 });
         } catch (error) {
             console.error("Chat fallback:", error.message);
             const files = [...new Set(retrievedChunks.map((chunk) => chunk.filePath).filter(Boolean))];
@@ -294,7 +294,7 @@ Keep the answer between 160 and 300 words so it is complete but easy to scan. Ev
         try {
             summary = await getLLMAnswer(prompt, {
                 temperature: 0.2,
-                maxAttempts: 2,
+                maxAttempts: 5,
                 maxOutputTokens: 1600,
             });
         } catch (error) {

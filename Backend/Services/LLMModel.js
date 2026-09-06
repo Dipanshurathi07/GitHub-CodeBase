@@ -1,31 +1,45 @@
 const dotenv = require("dotenv");
 dotenv.config();
 
-async function getLLMAnswer(userPrompt, options = {}) {
-  if (!process.env.GEMINI_API_KEY) {
-    throw new Error("GEMINI_API_KEY is not set in .env file");
-  }
+const MODEL_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent";
+let nextKeyIndex = 0;
 
-  const maxAttempts = options.maxAttempts ?? 3;
-  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+function getGeminiKeys() {
+  const numberedKeys = Array.from({ length: 5 }, (_, index) => process.env[`GEMINI_API_KEY${index + 1}`]);
+  const keys = [...numberedKeys, process.env.GEMINI_API_KEY]
+    .map((key) => key?.trim())
+    .filter(Boolean);
+
+  if (!keys.length) throw new Error("No Gemini API keys are configured");
+  return [...new Set(keys)];
+}
+
+function getKeyOrder(keys) {
+  const start = nextKeyIndex % keys.length;
+  nextKeyIndex = (nextKeyIndex + 1) % keys.length;
+  return keys.slice(start).concat(keys.slice(0, start));
+}
+
+async function getLLMAnswer(userPrompt, options = {}) {
+  const keys = getGeminiKeys();
+  const keyOrder = getKeyOrder(keys).slice(0, Math.min(options.maxAttempts ?? keys.length, keys.length));
+
+  for (let attempt = 0; attempt < keyOrder.length; attempt += 1) {
     try {
-      const response = await fetch(
-        "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-goog-api-key": process.env.GEMINI_API_KEY,
+      const response = await fetch(MODEL_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-goog-api-key": keyOrder[attempt],
+        },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: userPrompt }] }],
+          generationConfig: {
+            temperature: options.temperature ?? 0.7,
+            maxOutputTokens: options.maxOutputTokens ?? 1000,
           },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: userPrompt }] }],
-            generationConfig: {
-              temperature: options.temperature ?? 0.7,
-              maxOutputTokens: options.maxOutputTokens ?? 1000,
-            },
-          }),
-        }
-      );
+        }),
+      });
 
       if (response.ok) {
         const data = await response.json();
@@ -35,19 +49,23 @@ async function getLLMAnswer(userPrompt, options = {}) {
       }
 
       const error = new Error(`Gemini API error: ${response.status} ${response.statusText}`);
-      if (![429, 500, 502, 503, 504].includes(response.status) || attempt === maxAttempts) {
-        throw error;
-      }
-      await new Promise((resolve) => setTimeout(resolve, attempt * 1500));
+      const retryable = [429, 500, 502, 503, 504].includes(response.status);
+      if (!retryable || attempt === keyOrder.length - 1) throw error;
+
+      const retryAfter = Number(response.headers.get("retry-after"));
+      const delay = response.status === 429 && Number.isFinite(retryAfter)
+        ? Math.min(retryAfter * 1000, 3000)
+        : 500;
+      await new Promise((resolve) => setTimeout(resolve, delay));
     } catch (error) {
-      if (attempt === maxAttempts) {
+      if (attempt === keyOrder.length - 1) {
         console.error("Error getting LLM answer:", error.message);
         throw error;
       }
     }
   }
 
-  throw new Error("Gemini request failed");
+  throw new Error("All Gemini API keys failed");
 }
 
 module.exports = getLLMAnswer;
