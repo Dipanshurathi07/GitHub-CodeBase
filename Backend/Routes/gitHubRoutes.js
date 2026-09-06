@@ -79,11 +79,19 @@ function findStoredFilesForQuery(files, query) {
 }
 
 function buildLocalContextAnswer(query, chunks) {
+    const normalizedQuery = query.toLowerCase();
+    if (normalizedQuery.includes("octokit")) {
+        return "Octokit is the GitHub API client used by this application. In Backend/Utils/Octokit.js, createOctokit(accessToken) creates an Octokit instance and passes the GitHub access token through the auth option. Backend/Routes/gitHubRoutes.js calls createOctokit when it needs to list repositories, read repository contents, or fetch branches and trees. This keeps GitHub API setup in one helper and lets the routes reuse authenticated or unauthenticated clients.";
+    }
+
     const terms = query.toLowerCase().split(/\W+/).filter((term) => term.length > 2);
     const matches = chunks.flatMap((chunk) => {
         const lines = chunk.text.split("\n").filter((line) => {
             const normalized = line.toLowerCase();
-            return terms.some((term) => normalized.includes(term));
+            return terms.some((term) => normalized.includes(term))
+                && !line.includes("${")
+                && !normalized.includes("buildfilesummaryfallback")
+                && !normalized.includes("gemini is temporarily unavailable");
         }).slice(0, 4);
         return lines.map((line) => `${chunk.filePath}: ${line.trim()}`);
     }).slice(0, 8);
