@@ -73,6 +73,10 @@ function findStoredFilesForQuery(files, query) {
         }));
 }
 
+function isCasualMessage(message) {
+    return /^(hi+|hello+|hey+|hii+|namaste|how are you|how r u|kya haal(?: hai)?|kaise ho|kese ho|what's up|sup|good morning|good evening|good night|thanks|thank you|ok|okay)[!?.,\s]*$/i.test(message.trim());
+}
+
 async function persistFile({ owner, repo, repoDoc, file }) {
     const content = Buffer.from(file.content, "base64").toString("utf-8");
     const ast = createAST(content, file.path);
@@ -178,6 +182,15 @@ router.post("/search/:owner/:repo", async (req, res) => {
 
         if (!userQuery || !userQuery.trim()) {
             return res.status(400).json({ success: false, message: "Query is required" });
+        }
+
+        if (isCasualMessage(userQuery)) {
+            return res.status(200).json({
+                success: true,
+                answer: "Main theek hoon. Aap apne codebase ke baare me kuch pooch sakte hain.",
+                chunks: [],
+                chunkCount: 0,
+            });
         }
 
         const repoDoc = await Repository.findOne({ owner, repo }).select("_id").lean();
