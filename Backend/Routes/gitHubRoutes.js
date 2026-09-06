@@ -81,6 +81,11 @@ function findStoredFilesForQuery(files, query) {
 function buildLocalContextAnswer(query, chunks) {
     const normalizedQuery = query.toLowerCase();
     const hinglish = /\b(hinglish|hindi|roman|kyu|kya|kaise|kese|mujhe|batao|samjhao|hai|h|kr|kar|me|mera|meri|isse|iska|chahiye|do|dena)\b/i.test(query);
+    if (/(repo|repository|tree|fetch)/i.test(normalizedQuery)) {
+        return hinglish
+            ? "Repo tree GitHub API se fetch hoti hai. `gitHubRoutes.js` me default branch aur commit tree liya jata hai, phir recursive tree request se files aur folders ke paths milte hain. Frontend `FileTree.jsx` in items ko nested folder structure me convert karke screen par dikhata hai."
+            : "The repository tree is fetched through the GitHub API. `gitHubRoutes.js` gets the default branch and commit tree, then requests the tree recursively to receive file and folder paths. `FileTree.jsx` converts those items into the nested structure shown in the UI.";
+    }
     if (normalizedQuery.includes("octokit")) {
         return hinglish
             ? "Octokit GitHub API client hai. Backend/Utils/Octokit.js me createOctokit(accessToken) Octokit instance banata hai aur access token ko auth option me pass karta hai. Backend/Routes/gitHubRoutes.js ise repositories, files, branches aur trees GitHub se fetch karne ke liye use karta hai. Isse GitHub API setup ek helper me centralized rehta hai."
@@ -99,7 +104,7 @@ function buildLocalContextAnswer(query, chunks) {
         return lines.map((line) => `${chunk.filePath}: ${line.trim()}`);
     }).slice(0, 8);
 
-    return `Gemini is temporarily unavailable, but I found relevant code for your question. The matching code appears in: ${[...new Set(chunks.map((chunk) => chunk.filePath))].join(", ")}. The relevant source lines are:\n${matches.join("\n") || "No exact matching line was found; open the listed files to inspect their flow."}`;
+    return `${hinglish ? "Gemini abhi temporarily unavailable hai, lekin relevant code mil gaya. " : "Gemini is temporarily unavailable, but I found relevant code. "}Matching files: ${[...new Set(chunks.map((chunk) => chunk.filePath))].join(", ")}. Relevant source lines:\n${matches.join("\n") || "No exact matching line was found; open the listed files to inspect their flow."}`;
 }
 
 function isCasualMessage(message) {
