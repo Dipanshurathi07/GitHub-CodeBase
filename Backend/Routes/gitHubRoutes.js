@@ -57,11 +57,16 @@ FILE CONTENT END`;
 }
 
 function findStoredFilesForQuery(files, query) {
-    const terms = query.toLowerCase().split(/\W+/).filter((term) => term.length > 2);
+    const stopWords = new Set(["the", "why", "what", "how", "does", "is", "are", "and", "for", "use", "this", "that", "with"]);
+    const terms = query.toLowerCase().split(/\W+/).filter((term) => term.length > 2 && !stopWords.has(term));
     return files
         .map((file) => ({
             file,
-            score: terms.reduce((score, term) => score + (file.content.toLowerCase().includes(term) ? 1 : 0), 0),
+            score: terms.reduce((score, term) => {
+                const contentMatch = file.content.toLowerCase().includes(term) ? 1 : 0;
+                const pathMatch = file.filePath.toLowerCase().includes(term) ? 4 : 0;
+                return score + contentMatch + pathMatch;
+            }, 0),
         }))
         .filter(({ score }) => score > 0)
         .sort((left, right) => right.score - left.score)
@@ -83,7 +88,7 @@ function buildLocalContextAnswer(query, chunks) {
         return lines.map((line) => `${chunk.filePath}: ${line.trim()}`);
     }).slice(0, 8);
 
-    return `Gemini is temporarily unavailable, but I found relevant code for your question. The matching code appears in: ${[...new Set(chunks.map((chunk) => chunk.filePath))].join(", ")}. It is used to store or process the file information needed by later requests, such as metadata, imports, functions, classes, and file content. Relevant lines:\n${matches.join("\n") || "No exact matching line was found; open the listed files to inspect their flow."}`;
+    return `Gemini is temporarily unavailable, but I found relevant code for your question. The matching code appears in: ${[...new Set(chunks.map((chunk) => chunk.filePath))].join(", ")}. The relevant source lines are:\n${matches.join("\n") || "No exact matching line was found; open the listed files to inspect their flow."}`;
 }
 
 function isCasualMessage(message) {
@@ -246,6 +251,9 @@ router.post("/search/:owner/:repo", async (req, res) => {
         let answer;
         try {
             answer = await getLLMAnswer(prompt, { maxAttempts: 5, maxOutputTokens: 700 });
+            if (/could not find|couldn't find|insufficient context|not enough context/i.test(answer)) {
+                answer = buildLocalContextAnswer(userQuery, retrievedChunks);
+            }
         } catch (error) {
             console.error("Chat fallback:", error.message);
             answer = buildLocalContextAnswer(userQuery, retrievedChunks);
