@@ -50,12 +50,12 @@ export const fetchFileSummary = createAsyncThunk(
 
 export const fetchCodebaseAnswer = createAsyncThunk(
   'github/fetchCodebaseAnswer',
-  async ({ owner, repo, query }, { rejectWithValue }) => {
+  async ({ owner, repo, query, selectedPath }, { rejectWithValue }) => {
     try {
       const data = await request(`/api/github/search/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query }),
+        body: JSON.stringify({ query, selectedPath }),
       });
       return data.answer;
     } catch (error) {

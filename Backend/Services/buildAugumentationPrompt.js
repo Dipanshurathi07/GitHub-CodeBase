@@ -1,3 +1,5 @@
+const isHinglish = require("./isHinglish");
+
 /**
  user query - String
   retrievedChunks - Array of objects, each containing:
@@ -10,7 +12,7 @@
  */
 function buildAugmentationPrompt(userQuery, retrievedChunks) {
   let context = "";
-  const languageInstruction = /\b(hinglish|hindi|roman|kyu|kya|kaise|kese|mujhe|batao|samjhao|hai|h|kr|kar|me|mera|meri|isse|iska|chahiye|do|dena)\b/i.test(userQuery)
+  const languageInstruction = isHinglish(userQuery)
     ? "Answer in simple Hinglish using Roman script, because the user asked in Hinglish. Keep technical names and code symbols in English."
     : "Answer in the same language as the user's question.";
 

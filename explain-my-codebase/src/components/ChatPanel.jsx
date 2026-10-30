@@ -19,7 +19,7 @@ function fallbackReply(question) {
   return 'I could not find a grounded answer in the indexed repo yet. Try asking about a specific file, function, or request flow.'
 }
 
-export default function ChatPanel({ owner, repo }) {
+export default function ChatPanel({ owner, repo, selectedPath }) {
   const dispatch = useDispatch()
   const [messages, setMessages] = useState([
     {
@@ -41,7 +41,7 @@ export default function ChatPanel({ owner, repo }) {
     setMessages((m) => [...m, { role: 'user', content: question }])
     setInput('')
     setIsThinking(true)
-    dispatch(fetchCodebaseAnswer({ owner, repo, query: question }))
+    dispatch(fetchCodebaseAnswer({ owner, repo, query: question, selectedPath }))
       .unwrap()
       .then((answer) => {
         setMessages((m) => [...m, { role: 'assistant', content: answer || fallbackReply(question) }])

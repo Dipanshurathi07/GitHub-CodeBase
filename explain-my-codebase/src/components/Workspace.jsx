@@ -104,7 +104,7 @@ export default function Workspace({ repoName }) {
             </p>
           </div>
           <div className="h-[calc(100%-2.75rem)]">
-            <ChatPanel owner={owner} repo={repo} />
+            <ChatPanel owner={owner} repo={repo} selectedPath={selected?.path} />
           </div>
         </div>
       </div>

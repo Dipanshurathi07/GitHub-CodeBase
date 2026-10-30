@@ -10,6 +10,7 @@ const upsertVectors = require("../Utils/PCupsert");
 const vectorSearch = require("../Services/vectorSearch");
 const buildAugmentationPrompt = require("../Services/buildAugumentationPrompt");
 const getLLMAnswer = require("../Services/LLMModel");
+const isHinglish = require("../Services/isHinglish");
 
 const router = express.Router();
 
@@ -18,6 +19,16 @@ const TREE_IGNORED_PATHS = /(^|\/)(node_modules|\.git|dist|build|coverage|\.next
 const TEXT_EXTENSIONS = /\.(js|jsx|ts|tsx|mjs|cjs|json|md|css|scss|html|yml|yaml|py|java|go|rs|rb|php|sql|sh)$/i;
 const VECTOR_INDEXING_ENABLED = process.env.ENABLE_VECTOR_INDEXING === "true";
 const activeIndexJobs = new Set();
+const QUERY_STOP_WORDS = new Set([
+    "a", "an", "and", "are", "does", "for", "handles", "how", "in", "is", "of", "the", "this", "to", "what", "which", "where", "with",
+    "do", "file", "files",
+]);
+
+function getQueryTerms(query) {
+    return [...new Set(query.toLowerCase().split(/\W+/)
+        .filter((term) => term.length > 2 && !QUERY_STOP_WORDS.has(term))
+        .map((term) => term === "authentication" || term === "authorization" ? "auth" : term))];
+}
 
 function buildFileSummaryFallback(path, content) {
     const imports = [...content.matchAll(/(?:require\(['"]([^'"]+)|from ['"]([^'"]+))/g)]
@@ -57,8 +68,7 @@ FILE CONTENT END`;
 }
 
 function findStoredFilesForQuery(files, query) {
-    const stopWords = new Set(["the", "why", "what", "how", "does", "is", "are", "and", "for", "use", "this", "that", "with"]);
-    const terms = query.toLowerCase().split(/\W+/).filter((term) => term.length > 2 && !stopWords.has(term));
+    const terms = getQueryTerms(query);
     return files
         .map((file) => ({
             file,
@@ -80,7 +90,7 @@ function findStoredFilesForQuery(files, query) {
 
 function buildLocalContextAnswer(query, chunks) {
     const normalizedQuery = query.toLowerCase();
-    const hinglish = /\b(hinglish|hindi|roman|kyu|kya|kaise|kese|mujhe|batao|samjhao|hai|h|kr|kar|me|mera|meri|isse|iska|chahiye|do|dena)\b/i.test(query);
+    const hinglish = isHinglish(query);
     if (/(repo|repository|tree|fetch)/i.test(normalizedQuery)) {
         return hinglish
             ? "Repo tree GitHub API se fetch hoti hai. `gitHubRoutes.js` me default branch aur commit tree liya jata hai, phir recursive tree request se files aur folders ke paths milte hain. Frontend `FileTree.jsx` in items ko nested folder structure me convert karke screen par dikhata hai."
@@ -92,7 +102,7 @@ function buildLocalContextAnswer(query, chunks) {
             : "Octokit is the GitHub API client used by this application. In Backend/Utils/Octokit.js, createOctokit(accessToken) creates an Octokit instance and passes the GitHub access token through the auth option. Backend/Routes/gitHubRoutes.js calls createOctokit when it needs to list repositories, read repository contents, or fetch branches and trees. This keeps GitHub API setup in one helper and lets the routes reuse authenticated or unauthenticated clients.";
     }
 
-    const terms = query.toLowerCase().split(/\W+/).filter((term) => term.length > 2);
+    const terms = getQueryTerms(query);
     const matches = chunks.flatMap((chunk) => {
         const lines = chunk.text.split("\n").filter((line) => {
             const normalized = line.toLowerCase();
@@ -213,6 +223,7 @@ router.post("/search/:owner/:repo", async (req, res) => {
     try {
         const { owner, repo } = req.params;
         const userQuery = req.body.query;
+        const selectedPath = typeof req.body.selectedPath === "string" ? req.body.selectedPath.trim() : "";
 
         if (!userQuery || !userQuery.trim()) {
             return res.status(400).json({ success: false, message: "Query is required" });
@@ -233,7 +244,22 @@ router.post("/search/:owner/:repo", async (req, res) => {
             return res.status(404).json({ success: false, message: "Repository is not indexed yet" });
         }
 
-        if (VECTOR_INDEXING_ENABLED) {
+        if (selectedPath) {
+            const selectedFile = await FileContent.findOne({ repoId: repoDoc._id, filePath: selectedPath })
+                .select("filePath content")
+                .lean();
+
+            if (!selectedFile) {
+                return res.status(404).json({ success: false, message: "Selected file is not indexed yet" });
+            }
+
+            const content = selectedFile.content || "";
+            retrievedChunks = [{
+                filePath: selectedFile.filePath,
+                text: content.slice(0, 12000),
+                metadata: { filePath: selectedFile.filePath, content: content.slice(0, 12000) },
+            }];
+        } else if (VECTOR_INDEXING_ENABLED) {
             try {
                 retrievedChunks = await vectorSearch(userQuery, repoDoc._id);
             } catch (error) {
